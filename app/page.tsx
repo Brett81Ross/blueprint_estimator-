@@ -1,98 +1,64 @@
-"use client";
+'use client'
 
-import { useState } from "react";
+import { useState } from 'react'
 
 export default function Home() {
+  const [file, setFile] = useState<File | null>(null)
 
-  const [trade,setTrade] = useState("Electrical");
-  const [height,setHeight] = useState("10");
-  const [project,setProject] = useState("Residential");
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0])
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!file) return
+    
+    // This is where we will wire up the gemini-3.5-flash API route next!
+    console.log("Blueprint ready for analysis:", file.name)
+  }
 
   return (
-    <main className="min-h-screen p-8">
+    <main className="min-h-screen p-8 flex flex-col items-center justify-center bg-gray-50">
+      <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">
+          Blueprint Estimator
+        </h1>
 
-      <h1 className="text-4xl font-bold">
-        Blueprint AI Estimator
-      </h1>
-
-      <p className="mt-3">
-        AI-powered construction takeoffs and estimates
-      </p>
-
-
-      <div className="mt-8 space-y-5">
-
-        <div>
-          <label>Trade</label>
-          <select
-            className="border p-2 block"
-            value={trade}
-            onChange={(e)=>setTrade(e.target.value)}
-          >
-            <option>Electrical</option>
-            <option>Plumbing</option>
-            <option>HVAC</option>
-            <option>Concrete</option>
-            <option>Framing</option>
-            <option>Roofing</option>
-            <option>General Contractor</option>
-          </select>
-        </div>
-
-
-        <div>
-          <label>Ceiling Height</label>
-          <select
-            className="border p-2 block"
-            value={height}
-            onChange={(e)=>setHeight(e.target.value)}
-          >
-            <option>8 ft</option>
-            <option>9 ft</option>
-            <option>10 ft</option>
-            <option>12 ft</option>
-            <option>14 ft</option>
-            <option>16 ft</option>
-          </select>
-        </div>
-
-
-        <div>
-          <label>Project Type</label>
-          <select
-            className="border p-2 block"
-            value={project}
-            onChange={(e)=>setProject(e.target.value)}
-          >
-            <option>Residential</option>
-            <option>Commercial</option>
-            <option>Industrial</option>
-          </select>
-        </div>
-
-
-        <div>
-          <label>
-            Upload Blueprint
+        <div className="flex flex-col gap-4">
+          {/* Upload Dropzone */}
+          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+              <p className="mb-2 text-sm text-gray-500 font-semibold">
+                Tap to upload blueprint
+              </p>
+              <p className="text-xs text-gray-400">PNG, JPG, or PDF</p>
+            </div>
+            <input
+              type="file"
+              className="hidden"
+              accept=".png,.jpg,.jpeg,.pdf"
+              onChange={handleFileChange}
+            />
           </label>
 
-          <input
-            className="block"
-            type="file"
-            multiple
-            accept="image/*,.pdf"
-          />
+          {/* File Selection Feedback */}
+          {file && (
+            <p className="text-sm text-green-600 text-center font-medium">
+              Selected: {file.name}
+            </p>
+          )}
 
+          {/* Action Button */}
+          <button
+            onClick={handleUpload}
+            disabled={!file}
+            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+          >
+            Generate Takeoff Report
+          </button>
         </div>
-
-
-        <button className="bg-black text-white px-5 py-3 rounded">
-          Generate Estimate
-        </button>
-
-
       </div>
-
     </main>
-  );
+  )
 }
