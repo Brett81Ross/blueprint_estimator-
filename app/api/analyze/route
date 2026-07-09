@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     
-    // Grab all files instead of just one
+    // Safely collect all uploaded files from the multipart form data
     const files = formData.getAll('files') as File[];
     
     const trade = formData.get('trade') || 'General';
@@ -19,18 +19,29 @@ export async function POST(req: NextRequest) {
     const laborRate = formData.get('laborRate') || 'Standard';
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: 'No blueprints uploaded' }, { status: 400 });
+      return NextResponse.json({ error: 'No files or images were provided for analysis.' }, { status: 400 });
     }
 
-    // Process all uploaded files into an array of inlineData objects for Gemini
+    // Process every file using a solid buffer array method
     const fileParts = await Promise.all(
       files.map(async (file) => {
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        // Dynamic fallback for mobile mime types
+        let mimeType = file.type;
+        if (!mimeType && file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
+          mimeType = 'image/jpeg';
+        } else if (!mimeType && file.name.toLowerCase().endsWith('.png')) {
+          mimeType = 'image/png';
+        } else if (!mimeType && file.name.toLowerCase().endsWith('.pdf')) {
+          mimeType = 'application/pdf';
+        }
+
         return {
           inlineData: {
             data: buffer.toString('base64'),
-            mimeType: file.type,
+            mimeType: mimeType || 'image/jpeg' // Default fallback to prevent crash
           },
         };
       })
@@ -80,7 +91,6 @@ export async function POST(req: NextRequest) {
       (List any critical details missing from the blueprints needed for 100% accuracy)
     `;
 
-    // Send the prompt followed by all the processed images/files
     const result = await model.generateContent([prompt, ...fileParts]);
     const response = await result.response;
     const text = response.text();
