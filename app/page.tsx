@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 export default function Home() {
+  // Form State
   const [files, setFiles] = useState<File[]>([])
   const [trade, setTrade] = useState('General Contractor')
   const [ceilingHeight, setCeilingHeight] = useState('')
@@ -11,9 +12,12 @@ export default function Home() {
   const [sqft, setSqft] = useState('')
   const [floors, setFloors] = useState('')
   const [laborRate, setLaborRate] = useState('')
+  
+  // App State
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
 
+  // Appends newly selected files to our existing list
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files)
@@ -22,6 +26,7 @@ export default function Home() {
     }
   }
 
+  // Removes a specific file from the upload stack
   const removeFile = (indexToRemove: number) => {
     setFiles(files.filter((_, index) => index !== indexToRemove))
   }
@@ -70,6 +75,7 @@ export default function Home() {
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100 selection:bg-orange-500 selection:text-white">
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl mt-4 md:mt-8 overflow-hidden relative">
         
+        {/* Header Bar */}
         <div className="bg-zinc-950 border-b border-zinc-800 p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase">
@@ -83,6 +89,7 @@ export default function Home() {
 
         <div className="p-6 md:p-8 flex flex-col gap-8">
           
+          {/* STEP 1 & 2 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Select Trade *</label>
@@ -155,24 +162,29 @@ export default function Home() {
 
           <hr className="border-zinc-800" />
 
-          {/* DUAL BUTTONS */}
+          {/* STEP 3: UNIFIED UPLOAD BUTTONS */}
           <div className="flex flex-col gap-4">
             <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Upload Plans *</label>
             
             <div className="flex gap-4 w-full">
+              {/* BUTTON 1: QUICK CAMERA ACCESS */}
               <label className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-orange-500/50 rounded-xl cursor-pointer bg-orange-500/10 hover:bg-orange-500/20 transition-all text-orange-500 group">
                 <svg className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                <span className="font-bold text-sm tracking-wide">Take Pics</span>
+                <span className="font-bold text-sm tracking-wide text-center">Take Blueprint Pics</span>
+                {/* Single image capture for instant snapshot */}
                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
               </label>
 
+              {/* BUTTON 2: MULTI-SELECT PICKER */}
               <label className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-dashed border-zinc-700 rounded-xl cursor-pointer bg-zinc-950/50 hover:bg-zinc-800 transition-all text-zinc-400 group hover:text-white">
                 <svg className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                <span className="font-bold text-sm tracking-wide">Upload Files</span>
-                <input type="file" accept=".pdf,.png,.jpg,.jpeg" multiple className="hidden" onChange={handleFileChange} />
+                <span className="font-bold text-sm tracking-wide text-center">Upload Files (Multi)</span>
+                {/* Explicitly allows selecting multiple files at once on Android */}
+                <input type="file" accept="image/*,application/pdf" multiple className="hidden" onChange={handleFileChange} />
               </label>
             </div>
 
+            {/* List all stacked files with an 'X' to remove them */}
             {files.length > 0 && (
               <div className="flex flex-col gap-2 mt-4">
                 {files.map((file, index) => (
@@ -190,6 +202,7 @@ export default function Home() {
             )}
           </div>
 
+          {/* ACTION BUTTON */}
           <button
             onClick={handleUpload}
             disabled={files.length === 0 || !ceilingHeight || loading}
@@ -199,6 +212,7 @@ export default function Home() {
           </button>
         </div>
 
+        {/* RESULTS SECTION */}
         {report && (
           <div className="p-6 md:p-8 bg-zinc-950 border-t border-zinc-800">
             <div className="flex items-center justify-between mb-6">
