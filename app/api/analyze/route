@@ -6,9 +6,10 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const file = formData.get('file') as File;
     
-    // Extract new project variables
+    // Grab all files instead of just one
+    const files = formData.getAll('files') as File[];
+    
     const trade = formData.get('trade') || 'General';
     const ceilingHeight = formData.get('ceilingHeight') || 'Unknown';
     const projectType = formData.get('projectType') || 'Unknown';
@@ -17,22 +18,28 @@ export async function POST(req: NextRequest) {
     const floors = formData.get('floors') || 'Unknown';
     const laborRate = formData.get('laborRate') || 'Standard';
 
-    if (!file) {
-      return NextResponse.json({ error: 'No blueprint uploaded' }, { status: 400 });
+    if (!files || files.length === 0) {
+      return NextResponse.json({ error: 'No blueprints uploaded' }, { status: 400 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Data = buffer.toString('base64');
-
-    const filePart = {
-      inlineData: { data: base64Data, mimeType: file.type },
-    };
+    // Process all uploaded files into an array of inlineData objects for Gemini
+    const fileParts = await Promise.all(
+      files.map(async (file) => {
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        return {
+          inlineData: {
+            data: buffer.toString('base64'),
+            mimeType: file.type,
+          },
+        };
+      })
+    );
 
     const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
 
     const prompt = `
-      You are an expert construction estimator. Analyze this blueprint and generate a highly structured takeoff report.
+      You are an expert construction estimator. Analyze these blueprints/documents and generate a highly structured takeoff report.
       
       Project Parameters:
       - Trade Focus: ${trade}
@@ -48,7 +55,7 @@ export async function POST(req: NextRequest) {
       ### Project Overview
       Trade: ${trade}
       Project Type: ${projectType}
-      Estimated Scope: (Briefly describe what is visible)
+      Estimated Scope: (Briefly describe what is visible across all documents)
       Confidence Score: (Rate 1-100% based on drawing clarity)
 
       ### Material Takeoff
@@ -70,17 +77,18 @@ export async function POST(req: NextRequest) {
       Milestones: (List key phases)
 
       ### Missing Information
-      (List any critical details missing from the blueprint needed for 100% accuracy)
+      (List any critical details missing from the blueprints needed for 100% accuracy)
     `;
 
-    const result = await model.generateContent([prompt, filePart]);
+    // Send the prompt followed by all the processed images/files
+    const result = await model.generateContent([prompt, ...fileParts]);
     const response = await result.response;
     const text = response.text();
 
     return NextResponse.json({ result: text }, { status: 200 });
 
   } catch (error) {
-    console.error('Error processing blueprint:', error);
-    return NextResponse.json({ error: 'Failed to process blueprint' }, { status: 500 });
+    console.error('Error processing blueprints:', error);
+    return NextResponse.json({ error: 'Failed to process blueprints' }, { status: 500 });
   }
 }
