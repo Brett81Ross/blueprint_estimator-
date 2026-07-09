@@ -3,7 +3,7 @@
 import { useState } from 'react'
 
 export default function Home() {
-  // Form State - Now an array of files
+  // Form State
   const [files, setFiles] = useState<File[]>([])
   const [trade, setTrade] = useState('General Contractor')
   const [ceilingHeight, setCeilingHeight] = useState('')
@@ -17,12 +17,18 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
 
+  // Modified to APPEND files to the array, rather than replace them
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      // Convert the FileList object into a standard array
-      setFiles(Array.from(e.target.files))
+      const newFiles = Array.from(e.target.files)
+      setFiles((prevFiles) => [...prevFiles, ...newFiles])
       setReport(null) 
     }
+  }
+
+  // Allow removing a file if a mistake is made
+  const removeFile = (indexToRemove: number) => {
+    setFiles(files.filter((_, index) => index !== indexToRemove))
   }
 
   const handleUpload = async () => {
@@ -35,7 +41,6 @@ export default function Home() {
     setReport(null)
 
     const formData = new FormData()
-    // Loop through the array and append each file to the formData
     files.forEach((file) => {
       formData.append('files', file)
     })
@@ -157,64 +162,18 @@ export default function Home() {
 
           <hr className="border-zinc-800" />
 
-          {/* STEP 3: UPLOAD */}
+          {/* STEP 3: DUAL UPLOAD BUTTONS */}
           <div className="flex flex-col gap-4">
             <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Upload Plans *</label>
-            <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-zinc-700 rounded-xl cursor-pointer bg-zinc-950/50 hover:bg-zinc-800 hover:border-orange-500 transition-all duration-200 group">
-              <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                <svg className="w-12 h-12 mb-4 text-zinc-500 group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                <p className="mb-2 text-sm text-zinc-300 font-semibold group-hover:text-white transition-colors">
-                  Tap to upload multiple blueprints
-                </p>
-                <p className="text-xs text-zinc-500">PDF, PNG, or JPG</p>
-              </div>
-              <input 
-                type="file" 
-                className="hidden" 
-                multiple 
-                accept=".png,.jpg,.jpeg,.pdf" 
-                onChange={handleFileChange} 
-              />
-            </label>
+            
+            <div className="flex gap-4 w-full">
+              {/* BUTTON 1: CAMERA */}
+              <label className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-orange-500/50 rounded-xl cursor-pointer bg-orange-500/10 hover:bg-orange-500/20 transition-all text-orange-500 group">
+                <svg className="w-8 h-8 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                <span className="font-bold text-sm tracking-wide">Take Blueprint Pics</span>
+                {/* capture="environment" forces the rear camera to open on mobile */}
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+              </label>
 
-            {/* List all selected files */}
-            {files.length > 0 && (
-              <div className="flex flex-col gap-2 mt-2">
-                {files.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-orange-500/10 rounded-lg border border-orange-500/30">
-                    <p className="text-sm text-orange-400 font-bold truncate">📄 {file.name}</p>
-                    <p className="text-xs text-orange-500/70 uppercase">Ready</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ACTION BUTTON */}
-          <button
-            onClick={handleUpload}
-            disabled={files.length === 0 || !ceilingHeight || loading}
-            className="w-full bg-orange-500 text-zinc-950 font-black text-lg py-5 px-4 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 shadow-[0_0_20px_rgba(249,115,22,0.2)] disabled:shadow-none uppercase tracking-wider"
-          >
-            {loading ? '⚙️ Analyzing Blueprints...' : 'Generate Takeoff Report'}
-          </button>
-        </div>
-
-        {/* RESULTS SECTION */}
-        {report && (
-          <div className="p-6 md:p-8 bg-zinc-950 border-t border-zinc-800">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black text-white uppercase tracking-wide">Estimate Output</h2>
-              <button className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors">
-                ⬇ Download PDF
-              </button>
-            </div>
-            <div className="prose prose-invert prose-orange max-w-none text-zinc-300 whitespace-pre-wrap">
-              {report}
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
-  )
-}
+              {/* BUTTON 2: FILE PICKER */}
+              
