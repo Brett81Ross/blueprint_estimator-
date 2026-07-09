@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// Initialize the Gemini API client using your secure environment variable
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+export async function POST(req: NextRequest) {
+  try {
+    // 1. Grab the uploaded file from the request
+    const formData = await req.formData();
+    const file = formData.get('file') as File;
+
+    if (!file) {
+      return NextResponse.json({ error: 'No blueprint uploaded' }, { status: 400 });
+    }
+
+    // 2. Convert the file into a Base64 string that the Gemini API can process
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
+
+    const filePart = {
+      inlineData: {
+        data: base64Data,
+        mimeType: file.type,
+      },
+    };
+
+    // 3. Connect to the specified model
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+
+    // 4. Define the prompt for the takeoff generator
+    const prompt = `
+      Analyze this construction blueprint and generate a detailed takeoff report. 
+      Please provide:
+      - A list of estimated materials
+      - Visible quantities and dimensions
+      - Any potential structural highlights or concerns visible in the drawing.
+      Format the output clearly.
+    `;
+
+    // 5. Send the prompt and image to the model
+    const result = await model.generateContent([prompt, filePart]);
+    const response = await result.response;
+    const text = response.text();
+
+    // 6. Return the AI's analysis back to the frontend
+    return NextResponse.json({ result: text }, { status: 200 });
+
+  } catch (error) {
+    console.error('Error processing blueprint:', error);
+    return NextResponse.json({ error: 'Failed to process blueprint' }, { status: 500 });
+  }
+}
