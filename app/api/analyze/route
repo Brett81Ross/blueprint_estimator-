@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
+    // 1. Validate Environment Variable
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.trim() === "") {
+      return NextResponse.json({ 
+        error: 'Configuration Error: Server environment variable "GEMINI_API_KEY" is missing or empty. Please verify your Vercel project settings.' 
+      }, { status: 500 });
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    // 2. Parse Multipart Form Data
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch (formError: any) {
+      return NextResponse.json({ 
+        error: `Form Data Parse Error: Failed to read incoming request fields. Details: ${formError?.message || formError}` 
+      }, { status: 400 });
+    }
     
-    // Safely collect all uploaded files from the multipart form data
     const files = formData.getAll('files') as File[];
-    
     const trade = formData.get('trade') || 'General';
     const ceilingHeight = formData.get('ceilingHeight') || 'Unknown';
     const projectType = formData.get('projectType') || 'Unknown';
@@ -19,86 +33,105 @@ export async function POST(req: NextRequest) {
     const laborRate = formData.get('laborRate') || 'Standard';
 
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: 'No files or images were provided for analysis.' }, { status: 400 });
+      return NextResponse.json({ error: 'Validation Error: No blueprint files or images were attached to the request.' }, { status: 400 });
     }
 
-    // Process every file using a solid buffer array method
-    const fileParts = await Promise.all(
-      files.map(async (file) => {
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
+    // 3. Convert Documents/Images into API Base64 Buffers
+    let fileParts: any[];
+    try {
+      fileParts = await Promise.all(
+        files.map(async (file) => {
+          const bytes = await file.arrayBuffer();
+          const buffer = Buffer.from(bytes);
+          
+          let mimeType = file.type;
+          if (!mimeType) {
+            const nameLower = file.name.toLowerCase();
+            if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
+              mimeType = 'image/jpeg';
+            } else if (nameLower.endsWith('.png')) {
+              mimeType = 'image/png';
+            } else if (nameLower.endsWith('.pdf')) {
+              mimeType = 'application/pdf';
+            } else {
+              mimeType = 'image/jpeg';
+            }
+          }
+
+          return {
+            inlineData: {
+              data: buffer.toString('base64'),
+              mimeType: mimeType
+            },
+          };
+        })
+      );
+    } catch (bufferError: any) {
+      return NextResponse.json({ 
+        error: `File Processing Error: Failed to process blueprint files into data buffers. Details: ${bufferError?.message || bufferError}` 
+      }, { status: 500 });
+    }
+
+    // 4. Contact Gemini Model
+    let text = "";
+    try {
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+
+      const prompt = `
+        You are an expert construction estimator. Analyze these blueprints/documents and generate a highly structured takeoff report.
         
-        // Dynamic fallback for mobile mime types
-        let mimeType = file.type;
-        if (!mimeType && file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
-          mimeType = 'image/jpeg';
-        } else if (!mimeType && file.name.toLowerCase().endsWith('.png')) {
-          mimeType = 'image/png';
-        } else if (!mimeType && file.name.toLowerCase().endsWith('.pdf')) {
-          mimeType = 'application/pdf';
-        }
+        Project Parameters:
+        - Trade Focus: ${trade}
+        - Ceiling Height: ${ceilingHeight}
+        - Project Type: ${projectType}
+        - Location/Region: ${location}
+        - Square Footage: ${sqft}
+        - Number of Floors: ${floors}
+        - Labor Rate Assumption: ${laborRate}
 
-        return {
-          inlineData: {
-            data: buffer.toString('base64'),
-            mimeType: mimeType || 'image/jpeg' // Default fallback to prevent crash
-          },
-        };
-      })
-    );
+        Format your response EXACTLY with these markdown sections and tables:
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+        ### Project Overview
+        Trade: ${trade}
+        Project Type: ${projectType}
+        Estimated Scope: (Briefly describe what is visible across all documents)
+        Confidence Score: (Rate 1-100% based on drawing clarity)
 
-    const prompt = `
-      You are an expert construction estimator. Analyze these blueprints/documents and generate a highly structured takeoff report.
-      
-      Project Parameters:
-      - Trade Focus: ${trade}
-      - Ceiling Height: ${ceilingHeight}
-      - Project Type: ${projectType}
-      - Location/Region: ${location}
-      - Square Footage: ${sqft}
-      - Number of Floors: ${floors}
-      - Labor Rate Assumption: ${laborRate}
+        ### Material Takeoff
+        (Create a markdown table with columns: Item | Quantity | Unit)
 
-      Format your response EXACTLY with these markdown sections and tables:
+        ### Labor Takeoff
+        (Create a markdown table with columns: Task | Hours)
 
-      ### Project Overview
-      Trade: ${trade}
-      Project Type: ${projectType}
-      Estimated Scope: (Briefly describe what is visible across all documents)
-      Confidence Score: (Rate 1-100% based on drawing clarity)
+        ### Cost Breakdown
+        Materials: $...
+        Labor: $...
+        Equipment: $...
+        Waste Factor: ...%
+        Estimated Total: $...
 
-      ### Material Takeoff
-      (Create a markdown table with columns: Item | Quantity | Unit)
+        ### Timeline
+        Crew Size: ...
+        Estimated Days: ...
+        Milestones: (List key phases)
 
-      ### Labor Takeoff
-      (Create a markdown table with columns: Task | Hours)
+        ### Missing Information
+        (List any critical details missing from the blueprints needed for 100% accuracy)
+      `;
 
-      ### Cost Breakdown
-      Materials: $...
-      Labor: $...
-      Equipment: $...
-      Waste Factor: ...%
-      Estimated Total: $...
-
-      ### Timeline
-      Crew Size: ...
-      Estimated Days: ...
-      Milestones: (List key phases)
-
-      ### Missing Information
-      (List any critical details missing from the blueprints needed for 100% accuracy)
-    `;
-
-    const result = await model.generateContent([prompt, ...fileParts]);
-    const response = await result.response;
-    const text = response.text();
+      const result = await model.generateContent([prompt, ...fileParts]);
+      const response = await result.response;
+      text = response.text();
+    } catch (apiError: any) {
+      return NextResponse.json({ 
+        error: `Gemini API Execution Error: The AI model failed to generate content. Details: ${apiError?.message || apiError}` 
+      }, { status: 500 });
+    }
 
     return NextResponse.json({ result: text }, { status: 200 });
 
-  } catch (error) {
-    console.error('Error processing blueprints:', error);
-    return NextResponse.json({ error: 'Failed to process blueprints' }, { status: 500 });
-  }
-}
+  } catch (globalError: any) {
+    console.error('Unhandled System Exception:', globalError);
+    return NextResponse.json({ 
+      error: `Unhandled Server Exception: ${globalError?.message || 'An unexpected error occurred during execution.'}` 
+    }, { status: 500 });
