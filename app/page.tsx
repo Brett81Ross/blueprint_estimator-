@@ -3,8 +3,8 @@
 import { useState } from 'react'
 
 export default function Home() {
-  // Form State
-  const [file, setFile] = useState<File | null>(null)
+  // Form State - Now an array of files
+  const [files, setFiles] = useState<File[]>([])
   const [trade, setTrade] = useState('General Contractor')
   const [ceilingHeight, setCeilingHeight] = useState('')
   const [projectType, setProjectType] = useState('Residential')
@@ -18,15 +18,16 @@ export default function Home() {
   const [report, setReport] = useState<string | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0])
+    if (e.target.files && e.target.files.length > 0) {
+      // Convert the FileList object into a standard array
+      setFiles(Array.from(e.target.files))
       setReport(null) 
     }
   }
 
   const handleUpload = async () => {
-    if (!file || !ceilingHeight) {
-      alert("Blueprint and Ceiling Height are required.")
+    if (files.length === 0 || !ceilingHeight) {
+      alert("At least one blueprint and Ceiling Height are required.")
       return
     }
     
@@ -34,7 +35,11 @@ export default function Home() {
     setReport(null)
 
     const formData = new FormData()
-    formData.append('file', file)
+    // Loop through the array and append each file to the formData
+    files.forEach((file) => {
+      formData.append('files', file)
+    })
+    
     formData.append('trade', trade)
     formData.append('ceilingHeight', ceilingHeight)
     formData.append('projectType', projectType)
@@ -55,7 +60,7 @@ export default function Home() {
         setReport(`Error: ${data.error}`)
       }
     } catch (error) {
-      setReport("An unexpected error occurred while processing the blueprint.")
+      setReport("An unexpected error occurred while processing the blueprints.")
     } finally {
       setLoading(false)
     }
@@ -159,17 +164,28 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center pt-5 pb-6">
                 <svg className="w-12 h-12 mb-4 text-zinc-500 group-hover:text-orange-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 <p className="mb-2 text-sm text-zinc-300 font-semibold group-hover:text-white transition-colors">
-                  Tap to upload blueprint or drag & drop
+                  Tap to upload multiple blueprints
                 </p>
-                <p className="text-xs text-zinc-500">PDF, PNG, or JPG up to 10MB</p>
+                <p className="text-xs text-zinc-500">PDF, PNG, or JPG</p>
               </div>
-              <input type="file" className="hidden" accept=".png,.jpg,.jpeg,.pdf" onChange={handleFileChange} />
+              <input 
+                type="file" 
+                className="hidden" 
+                multiple 
+                accept=".png,.jpg,.jpeg,.pdf" 
+                onChange={handleFileChange} 
+              />
             </label>
 
-            {file && (
-              <div className="flex items-center justify-between p-4 bg-orange-500/10 rounded-lg border border-orange-500/30">
-                <p className="text-sm text-orange-400 font-bold truncate">📄 {file.name}</p>
-                <p className="text-xs text-orange-500/70 uppercase">Ready</p>
+            {/* List all selected files */}
+            {files.length > 0 && (
+              <div className="flex flex-col gap-2 mt-2">
+                {files.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-orange-500/10 rounded-lg border border-orange-500/30">
+                    <p className="text-sm text-orange-400 font-bold truncate">📄 {file.name}</p>
+                    <p className="text-xs text-orange-500/70 uppercase">Ready</p>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -177,10 +193,10 @@ export default function Home() {
           {/* ACTION BUTTON */}
           <button
             onClick={handleUpload}
-            disabled={!file || !ceilingHeight || loading}
+            disabled={files.length === 0 || !ceilingHeight || loading}
             className="w-full bg-orange-500 text-zinc-950 font-black text-lg py-5 px-4 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 shadow-[0_0_20px_rgba(249,115,22,0.2)] disabled:shadow-none uppercase tracking-wider"
           >
-            {loading ? '⚙️ Analyzing Blueprint...' : 'Generate Takeoff Report'}
+            {loading ? '⚙️ Analyzing Blueprints...' : 'Generate Takeoff Report'}
           </button>
         </div>
 
