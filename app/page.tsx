@@ -69,14 +69,22 @@ export default function Home() {
       if (response.ok) {
         setReport(data.result)
       } else {
-        // Force the app to print whatever error the server returned
-        setErrorMessage(data.error || `Server Error: Status ${response.status}`);
+        setErrorMessage(data.error || `Server Error: Status ${response.status}`)
       }
     } catch (error: any) {
       setErrorMessage(`Frontend/Network Error: ${error?.message || 'Failed to communicate with the server.'}`)
     } finally {
       setLoading(false)
     }
+  }
+
+  // UI Cleaner Helper: Cleans out markdown syntax artifacts dynamically
+  const formatReportText = (text: string) => {
+    return text
+      .replace(/###\s+/g, '') // Cleans layout hashtags
+      .replace(/\*\*/g, '')   // Cleans old bold indicators
+      .replace(/\|/g, '')     // Cleans loose table dividers
+      .replace(/-{3,}/g, '')  // Cleans markdown horizontal lines
   }
 
   return (
@@ -97,10 +105,10 @@ export default function Home() {
 
         <div className="p-6 md:p-8 flex flex-col gap-8">
           
-          {/* Form Parameters */}
+          {/* Parameters Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Select Trade *</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Select Trade *</label>
               <select 
                 value={trade} onChange={(e) => setTrade(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -116,7 +124,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider text-orange-400">Ceiling Height *</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider text-orange-400">Ceiling Height *</label>
               <input 
                 type="text" placeholder="e.g., 10 ft" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -124,7 +132,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Project Type</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Project Type</label>
               <select 
                 value={projectType} onChange={(e) => setProjectType(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -136,7 +144,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Total SqFt (Optional)</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total SqFt (Optional)</label>
               <input 
                 type="number" placeholder="e.g., 2500" value={sqft} onChange={(e) => setSqft(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -144,7 +152,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Number of Floors (Optional)</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Number of Floors (Optional)</label>
               <input 
                 type="number" placeholder="e.g., 2" value={floors} onChange={(e) => setFloors(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -152,7 +160,7 @@ export default function Home() {
             </div>
             
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Location (Optional)</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Location (Optional)</label>
               <input 
                 type="text" placeholder="City, State" value={location} onChange={(e) => setLocation(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -160,7 +168,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Local Labor Rate (Optional)</label>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Local Labor Rate (Optional)</label>
               <input 
                 type="text" placeholder="e.g., $65/hr" value={laborRate} onChange={(e) => setLaborRate(e.target.value)}
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
@@ -170,9 +178,9 @@ export default function Home() {
 
           <hr className="border-zinc-800" />
 
-          {/* Unified Upload Section */}
+          {/* Upload Blocks */}
           <div className="flex flex-col gap-4">
-            <label className="text-sm font-bold text-zinc-400 uppercase tracking-wider">Upload Plans *</label>
+            <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Upload Plans *</label>
             
             <div className="flex gap-4 w-full">
               <label className="flex-1 flex flex-col items-center justify-center py-6 border-2 border-orange-500/50 rounded-xl cursor-pointer bg-orange-500/10 hover:bg-orange-500/20 transition-all text-orange-500 group">
@@ -188,7 +196,7 @@ export default function Home() {
               </label>
             </div>
 
-            {/* Stacked File Previews */}
+            {/* List Selection Items */}
             {files.length > 0 && (
               <div className="flex flex-col gap-2 mt-4">
                 {files.map((file, index) => (
@@ -206,35 +214,68 @@ export default function Home() {
             )}
           </div>
 
-          {/* Action Trigger */}
           <button
             onClick={handleUpload}
             disabled={files.length === 0 || !ceilingHeight || loading}
             className="w-full bg-orange-500 text-zinc-950 font-black text-lg py-5 px-4 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 shadow-[0_0_20px_rgba(249,115,22,0.2)] disabled:shadow-none uppercase tracking-wider"
           >
-            {loading ? '⚙️ Analyzing Blueprints...' : 'Generate Takeoff Report'}
+            {loading ? '⚙️ Processing Assets...' : 'Generate Takeoff Report'}
           </button>
         </div>
 
-        {/* Dynamic Display Outputs */}
+        {/* MODERNIZED RESULTS LAYOUT CONTAINER */}
         {(report || errorMessage) && (
           <div className="p-6 md:p-8 bg-zinc-950 border-t border-zinc-800">
-            <h2 className="text-2xl font-black text-white uppercase tracking-wide mb-6">Estimate Output</h2>
+            <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider mb-6 flex items-center gap-2">
+              <span className="w-2 h-6 bg-orange-500 rounded-full inline-block"></span>
+              Estimate Dashboard
+            </h2>
             
-            {/* Detailed Error Box */}
             {errorMessage && (
-              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-medium text-sm whitespace-pre-wrap shadow-inner">
-                <div className="flex items-center gap-2 mb-2 font-bold text-red-500 uppercase tracking-wider text-xs">
-                  <span>⚠️ System Execution Failure</span>
-                </div>
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-medium text-sm whitespace-pre-wrap">
+                <div className="font-bold text-red-500 uppercase tracking-wider text-xs mb-1">⚠️ Error Encountered</div>
                 {errorMessage}
               </div>
             )}
 
-            {/* Structured Report Layout */}
             {report && (
-              <div className="prose prose-invert prose-orange max-w-none text-zinc-300 whitespace-pre-wrap">
-                {report}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-inner text-zinc-200 leading-relaxed space-y-4">
+                {/* Dynamically splits data string paragraphs into cleanly stylized typography items */}
+                {formatReportText(report).split('\n').map((line, i) => {
+                  const trimmed = line.trim();
+                  
+                  if (!trimmed) return <div key={i} className="h-2"></div>;
+
+                  // Transforms key titles into high-contrast section tags
+                  if (
+                    trimmed.startsWith('Project Overview') || 
+                    trimmed.startsWith('Material Takeoff') || 
+                    trimmed.startsWith('Labor Takeoff') || 
+                    trimmed.startsWith('Cost Breakdown') || 
+                    trimmed.startsWith('Timeline') || 
+                    trimmed.startsWith('Missing Information')
+                  ) {
+                    return (
+                      <h3 key={i} className="text-md font-black text-orange-400 uppercase tracking-widest border-b border-zinc-800 pb-2 mt-6 mb-3 first:mt-2">
+                        {trimmed}
+                      </h3>
+                    );
+                  }
+
+                  // Styles standard informational field readouts
+                  if (trimmed.includes(':')) {
+                    const [title, value] = trimmed.split(/:(.+)/);
+                    return (
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center py-1 border-b border-zinc-800/40 text-sm">
+                        <span className="font-bold text-zinc-400 w-48 shrink-0">{title.trim()}</span>
+                        <span className="text-zinc-100 font-medium mt-0.5 sm:mt-0">{value?.trim()}</span>
+                      </div>
+                    );
+                  }
+
+                  // Default line parser fallback
+                  return <p key={i} className="text-sm text-zinc-300 font-normal pl-1">{trimmed}</p>;
+                })}
               </div>
             )}
           </div>
