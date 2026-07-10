@@ -78,7 +78,6 @@ export default function Home() {
     }
   }
 
-  // Forces the browser to print only the specific dashboard node layout
   const triggerPdfDownload = () => {
     window.print()
   }
@@ -134,7 +133,7 @@ export default function Home() {
         }
       `}</style>
 
-      {/* Main Wrapper Box - Hidden entirely when printing */}
+      {/* Main Wrapper Box */}
       <div className="no-print bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl mt-4 md:mt-8 overflow-hidden relative">
         
         {/* Header Bar */}
@@ -261,17 +260,37 @@ export default function Home() {
             )}
           </div>
 
+          {/* ACTION BUTTON WITH ACTIVE MOTION WHEEL AND PULSING STATUS LIGHTS */}
           <button
             onClick={handleUpload}
             disabled={files.length === 0 || !ceilingHeight || loading}
-            className="w-full bg-orange-500 text-zinc-950 font-black text-lg py-5 px-4 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 shadow-[0_0_20px_rgba(249,115,22,0.2)] disabled:shadow-none uppercase tracking-wider"
+            className="w-full bg-orange-500 text-zinc-950 font-black text-lg py-5 px-4 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 shadow-[0_0_20px_rgba(249,115,22,0.2)] disabled:shadow-none uppercase tracking-wider flex items-center justify-center gap-3"
           >
-            {loading ? '⚙️ Processing Assets...' : 'Generate Takeoff Report'}
+            {loading ? (
+              <>
+                {/* 1. Motion Wheel (Spinner) */}
+                <svg className="animate-spin h-6 w-6 text-zinc-950" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                
+                {/* Text String */}
+                <span>Generating Takeoff Report</span>
+                
+                {/* 2. Blinking Status Light (Pulsing Indicator) */}
+                <span className="relative flex h-3 w-3 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              </>
+            ) : (
+              'Generate Takeoff Report'
+            )}
           </button>
         </div>
       </div>
 
-      {/* MODERNIZED RESULTS LAYOUT CONTAINER - This block switches to a clean white sheet format when printing */}
+      {/* MODERNIZED RESULTS LAYOUT CONTAINER */}
       {(report || errorMessage) && (
         <div className="print-area w-full max-w-3xl bg-zinc-950 border-t border-zinc-800 md:border md:border-zinc-800 md:rounded-2xl p-6 md:p-8 mt-6 overflow-hidden relative shadow-2xl">
           <div className="flex items-center justify-between mb-6 border-b print-border border-zinc-800 pb-4">
