@@ -86,7 +86,7 @@ export default function Home() {
   const formatReportText = (text: string) => {
     return text
       .replace(/###\s+/g, '') // Cleans layout hashtags
-      .replace(/\*\*/g, '')   // Cleans old bold indicators
+      .replace(/\*\转/g, '')   // Cleans old bold indicators
       .replace(/\|/g, '')     // Cleans loose table dividers
       .replace(/-{3,}/g, '')  // Cleans markdown horizontal lines
   }
@@ -260,29 +260,30 @@ export default function Home() {
             )}
           </div>
 
-          {/* ACTION BUTTON WITH ACTIVE MOTION WHEEL AND PULSING STATUS LIGHTS */}
+          {/* ACTION BUTTON WITH HIGH VISIBILITY AND FLASHING BEACON */}
           <button
             onClick={handleUpload}
             disabled={files.length === 0 || !ceilingHeight || loading}
             className="w-full bg-orange-500 text-zinc-950 font-black text-lg py-5 px-4 rounded-xl disabled:bg-zinc-800 disabled:text-zinc-600 disabled:cursor-not-allowed hover:bg-orange-400 active:scale-[0.98] transition-all duration-200 shadow-[0_0_20px_rgba(249,115,22,0.2)] disabled:shadow-none uppercase tracking-wider flex items-center justify-center gap-3"
           >
             {loading ? (
-              <>
-                {/* 1. Motion Wheel (Spinner) */}
-                <svg className="animate-spin h-6 w-6 text-zinc-950" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              <div className="flex items-center gap-3 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
+                {/* Bright White Spin Wheel */}
+                <svg className="animate-spin h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-100" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
                 
-                {/* Text String */}
-                <span>Generating Takeoff Report</span>
+                {/* High Contrast Text */}
+                <span className="font-black tracking-wide">Generating Takeoff Report</span>
                 
-                {/* 2. Blinking Status Light (Pulsing Indicator) */}
-                <span className="relative flex h-3 w-3 ml-1">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                {/* Flashing Green Construction Beacon */}
+                <span className="relative flex h-4 w-4 ml-1">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
+                  <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-50 scale-125"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-400 shadow-[0_0_10px_#10b981]"></span>
                 </span>
-              </>
+              </div>
             ) : (
               'Generate Takeoff Report'
             )}
