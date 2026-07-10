@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export default function Home() {
   // Form State
@@ -17,6 +17,16 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Anchor target reference for the scroll tracking engine
+  const reportRef = useRef<HTMLDivElement>(null)
+
+  // Automatically triggers a smooth downward scroll anchor once the report payload registers
+  useEffect(() => {
+    if (report && reportRef.current) {
+      reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, [report])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -86,7 +96,7 @@ export default function Home() {
   const formatReportText = (text: string) => {
     return text
       .replace(/###\s+/g, '') // Cleans layout hashtags
-      .replace(/\*\转/g, '')   // Cleans old bold indicators
+      .replace(/\*\*/g, '')   // Cleans old bold indicators
       .replace(/\|/g, '')     // Cleans loose table dividers
       .replace(/-{3,}/g, '')  // Cleans markdown horizontal lines
   }
@@ -260,7 +270,6 @@ export default function Home() {
             )}
           </div>
 
-          {/* ACTION BUTTON WITH HIGH VISIBILITY AND FLASHING BEACON */}
           <button
             onClick={handleUpload}
             disabled={files.length === 0 || !ceilingHeight || loading}
@@ -268,16 +277,11 @@ export default function Home() {
           >
             {loading ? (
               <div className="flex items-center gap-3 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-                {/* Bright White Spin Wheel */}
                 <svg className="animate-spin h-6 w-6 text-white" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-30" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-100" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
-                
-                {/* High Contrast Text */}
                 <span className="font-black tracking-wide">Generating Takeoff Report</span>
-                
-                {/* Flashing Green Construction Beacon */}
                 <span className="relative flex h-4 w-4 ml-1">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-80"></span>
                   <span className="animate-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-50 scale-125"></span>
@@ -291,9 +295,12 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MODERNIZED RESULTS LAYOUT CONTAINER */}
+      {/* MODERNIZED RESULTS LAYOUT CONTAINER WITH SCROLL ANCHOR LINK */}
       {(report || errorMessage) && (
-        <div className="print-area w-full max-w-3xl bg-zinc-950 border-t border-zinc-800 md:border md:border-zinc-800 md:rounded-2xl p-6 md:p-8 mt-6 overflow-hidden relative shadow-2xl">
+        <div 
+          ref={reportRef}
+          className="print-area w-full max-w-3xl bg-zinc-950 border-t border-zinc-800 md:border md:border-zinc-800 md:rounded-2xl p-6 md:p-8 mt-6 overflow-hidden relative shadow-2xl scroll-mt-6"
+        >
           <div className="flex items-center justify-between mb-6 border-b print-border border-zinc-800 pb-4">
             <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider flex items-center gap-2">
               <span className="no-print w-2 h-6 bg-orange-500 rounded-full inline-block"></span>
