@@ -114,6 +114,7 @@ export default function Home() {
                 className="w-full bg-zinc-950 border border-zinc-700 rounded-lg p-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
               >
                 <option>Electrical</option>
+                <option>Low Voltage</option>
                 <option>Plumbing</option>
                 <option>HVAC</option>
                 <option>Concrete</option>
@@ -240,13 +241,11 @@ export default function Home() {
 
             {report && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-inner text-zinc-200 leading-relaxed space-y-4">
-                {/* Dynamically splits data string paragraphs into cleanly stylized typography items */}
                 {formatReportText(report).split('\n').map((line, i) => {
                   const trimmed = line.trim();
                   
                   if (!trimmed) return <div key={i} className="h-2"></div>;
 
-                  // Transforms key titles into high-contrast section tags
                   if (
                     trimmed.startsWith('Project Overview') || 
                     trimmed.startsWith('Material Takeoff') || 
@@ -262,7 +261,6 @@ export default function Home() {
                     );
                   }
 
-                  // Styles standard informational field readouts
                   if (trimmed.includes(':')) {
                     const [title, value] = trimmed.split(/:(.+)/);
                     return (
@@ -273,7 +271,6 @@ export default function Home() {
                     );
                   }
 
-                  // Default line parser fallback
                   return <p key={i} className="text-sm text-zinc-300 font-normal pl-1">{trimmed}</p>;
                 })}
               </div>
