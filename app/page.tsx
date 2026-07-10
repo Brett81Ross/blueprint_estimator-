@@ -78,6 +78,11 @@ export default function Home() {
     }
   }
 
+  // Forces the browser to print only the specific dashboard node layout
+  const triggerPdfDownload = () => {
+    window.print()
+  }
+
   // UI Cleaner Helper: Cleans out markdown syntax artifacts dynamically
   const formatReportText = (text: string) => {
     return text
@@ -89,7 +94,48 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100 selection:bg-orange-500 selection:text-white">
-      <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl mt-4 md:mt-8 overflow-hidden relative">
+      
+      {/* GLOBAL CSS PRINT OVERRIDE STYLES */}
+      <style jsx global>{`
+        @media print {
+          body, main, html {
+            background: #ffffff !important;
+            color: #000000 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .print-area {
+            border: none !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-w-none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .print-title {
+            color: #f97316 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .print-border {
+            border-color: #e4e4e7 !important;
+          }
+          .print-row-title {
+            color: #71717a !important;
+          }
+          .print-row-value {
+            color: #18181b !important;
+          }
+        }
+      `}</style>
+
+      {/* Main Wrapper Box - Hidden entirely when printing */}
+      <div className="no-print bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl mt-4 md:mt-8 overflow-hidden relative">
         
         {/* Header Bar */}
         <div className="bg-zinc-950 border-b border-zinc-800 p-6 flex items-center justify-between">
@@ -223,61 +269,69 @@ export default function Home() {
             {loading ? '⚙️ Processing Assets...' : 'Generate Takeoff Report'}
           </button>
         </div>
+      </div>
 
-        {/* MODERNIZED RESULTS LAYOUT CONTAINER */}
-        {(report || errorMessage) && (
-          <div className="p-6 md:p-8 bg-zinc-950 border-t border-zinc-800">
-            <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider mb-6 flex items-center gap-2">
-              <span className="w-2 h-6 bg-orange-500 rounded-full inline-block"></span>
+      {/* MODERNIZED RESULTS LAYOUT CONTAINER - This block switches to a clean white sheet format when printing */}
+      {(report || errorMessage) && (
+        <div className="print-area w-full max-w-3xl bg-zinc-950 border-t border-zinc-800 md:border md:border-zinc-800 md:rounded-2xl p-6 md:p-8 mt-6 overflow-hidden relative shadow-2xl">
+          <div className="flex items-center justify-between mb-6 border-b print-border border-zinc-800 pb-4">
+            <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider flex items-center gap-2">
+              <span className="no-print w-2 h-6 bg-orange-500 rounded-full inline-block"></span>
               Estimate Dashboard
             </h2>
-            
-            {errorMessage && (
-              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-medium text-sm whitespace-pre-wrap">
-                <div className="font-bold text-red-500 uppercase tracking-wider text-xs mb-1">⚠️ Error Encountered</div>
-                {errorMessage}
-              </div>
-            )}
-
-            {report && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-inner text-zinc-200 leading-relaxed space-y-4">
-                {formatReportText(report).split('\n').map((line, i) => {
-                  const trimmed = line.trim();
-                  
-                  if (!trimmed) return <div key={i} className="h-2"></div>;
-
-                  if (
-                    trimmed.startsWith('Project Overview') || 
-                    trimmed.startsWith('Material Takeoff') || 
-                    trimmed.startsWith('Labor Takeoff') || 
-                    trimmed.startsWith('Cost Breakdown') || 
-                    trimmed.startsWith('Timeline') || 
-                    trimmed.startsWith('Missing Information')
-                  ) {
-                    return (
-                      <h3 key={i} className="text-md font-black text-orange-400 uppercase tracking-widest border-b border-zinc-800 pb-2 mt-6 mb-3 first:mt-2">
-                        {trimmed}
-                      </h3>
-                    );
-                  }
-
-                  if (trimmed.includes(':')) {
-                    const [title, value] = trimmed.split(/:(.+)/);
-                    return (
-                      <div key={i} className="flex flex-col sm:flex-row sm:items-center py-1 border-b border-zinc-800/40 text-sm">
-                        <span className="font-bold text-zinc-400 w-48 shrink-0">{title.trim()}</span>
-                        <span className="text-zinc-100 font-medium mt-0.5 sm:mt-0">{value?.trim()}</span>
-                      </div>
-                    );
-                  }
-
-                  return <p key={i} className="text-sm text-zinc-300 font-normal pl-1">{trimmed}</p>;
-                })}
-              </div>
-            )}
+            <button 
+              onClick={triggerPdfDownload}
+              className="no-print bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold text-xs py-2.5 px-4 rounded-lg tracking-wider uppercase transition-colors"
+            >
+              ⬇️ Download PDF
+            </button>
           </div>
-        )}
-      </div>
+          
+          {errorMessage && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-medium text-sm whitespace-pre-wrap">
+              <div className="font-bold text-red-500 uppercase tracking-wider text-xs mb-1">⚠️ Error Encountered</div>
+              {errorMessage}
+            </div>
+          )}
+
+          {report && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-inner text-zinc-200 leading-relaxed space-y-4 print-area">
+              {formatReportText(report).split('\n').map((line, i) => {
+                const trimmed = line.trim();
+                
+                if (!trimmed) return <div key={i} className="h-2"></div>;
+
+                if (
+                  trimmed.startsWith('Project Overview') || 
+                  trimmed.startsWith('Material Takeoff') || 
+                  trimmed.startsWith('Labor Takeoff') || 
+                  trimmed.startsWith('Cost Breakdown') || 
+                  trimmed.startsWith('Timeline') || 
+                  trimmed.startsWith('Missing Information')
+                ) {
+                  return (
+                    <h3 key={i} className="print-title text-md font-black text-orange-400 uppercase tracking-widest border-b border-zinc-800 print-border pb-2 mt-6 mb-3 first:mt-2">
+                      {trimmed}
+                    </h3>
+                  );
+                }
+
+                if (trimmed.includes(':')) {
+                  const [title, value] = trimmed.split(/:(.+)/);
+                  return (
+                    <div key={i} className="flex flex-col sm:flex-row sm:items-center py-1 border-b border-zinc-800/40 print-border text-sm">
+                      <span className="print-row-title font-bold text-zinc-400 w-48 shrink-0">{title.trim()}</span>
+                      <span className="print-row-value text-zinc-100 font-medium mt-0.5 sm:mt-0">{value?.trim()}</span>
+                    </div>
+                  );
+                }
+
+                return <p key={i} className="text-sm text-zinc-300 font-normal pl-1 print-row-value">{trimmed}</p>;
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </main>
   )
 }
