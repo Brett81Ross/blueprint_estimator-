@@ -39,7 +39,8 @@ export default function Home(props: any) {
   }
 
   const handleUpload = async () => {
-    if (files.length === 0 || !ceilingHeight) return alert("Required fields missing.");
+    if (files.length === 0 || !ceilingHeight) return alert("At least one blueprint and Ceiling Height are required.");
+    
     setLoading(true); setReport(null); setErrorMessage(null);
 
     const formData = new FormData()
@@ -69,7 +70,6 @@ export default function Home(props: any) {
     }
   }
 
-  // CLEANER: Keeps your original structure but strips just the LaTeX/math junk
   const formatReportText = (text: string) => {
     return text
       .replace(/\\text\{([^}]+)\}/gi, ' $1 ') 
@@ -103,12 +103,17 @@ export default function Home(props: any) {
             <div className="space-y-2">
               {formatReportText(report).split('\n').map((line, i) => {
                 if (!line.trim()) return null;
-                // Keep your original header logic but clean the styling
                 if (line.includes('##') || line.match(/Overview|Takeoff|Cost|Timeline|Missing/i)) {
                   return <h3 key={i} className="text-lg font-bold text-orange-400 mt-4 border-b border-zinc-700 pb-1">{line.replace(/#/g, '')}</h3>;
                 }
-                // Keep the row layout
-                return <p key={i} className="text-sm text-zinc-300 font-medium py-1">{line}</p>;
+                
+                // Surgical Fix: If the line contains a price, style it as a badge
+                const isMoney = /\d+\.\d{2}/.test(line);
+                return (
+                  <p key={i} className={`text-sm font-medium py-1 ${isMoney ? 'text-green-400 bg-green-900/20 px-2 rounded inline-block' : 'text-zinc-300'}`}>
+                    {line}
+                  </p>
+                );
               })}
             </div>
           )}
