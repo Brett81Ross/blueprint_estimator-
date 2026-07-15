@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     // Build a prompt that actually uses your form data
     const parts: any[] = [
