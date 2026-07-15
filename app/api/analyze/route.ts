@@ -11,25 +11,27 @@ export async function POST(req: Request) {
     const trade = formData.get("trade") || "General Contractor";
     const ceilingHeight = formData.get("ceilingHeight") || "Not specified";
     const projectType = formData.get("projectType") || "Not specified";
+    const scale = formData.get("scale") || "Not specified";
     const sqft = formData.get("sqft") || "Not specified";
     const laborRate = formData.get("laborRate") || "Not specified";
+    const location = formData.get("location") || "Not specified";
 
     if (!files || files.length === 0) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // ENHANCED PROMPT: Explicitly forcing the AI to hunt for missing structural/MEP details
     const parts: any[] = [
       { text: `You are an elite construction estimator. Perform a thorough, professional quantity takeoff for a ${trade} contractor.
-      Context: ${projectType} project, ${sqft} sqft, ${ceilingHeight} ceilings. Labor rate: ${laborRate}.
+      Context: ${projectType} project in ${location}, ${sqft} sqft, ${ceilingHeight} ceilings. 
+      Blueprint Scale: ${scale}
+      Labor rate: ${laborRate}.
       
       INSTRUCTIONS:
-      1. Analyze the uploaded plans in extreme detail. 
-      2. If foundation details, slab thickness, rebar schedules, or structural wall sections are NOT visible in the provided images, you MUST list them under 'Missing Information' as critical items needed for a final bid.
-      3. Do not gloss over structural elements—identify columns, load-bearing walls, and roof plan requirements if present.
-      4. Break the report into these sections: Project Overview, Material Takeoff, Labor Takeoff, Detailed Cost Breakdown, and Mandatory Missing Information (specifically call out missing structural specs).` }
+      1. Analyze the uploaded plans in extreme detail using the provided scale (${scale}) to estimate dimensions if none are explicitly written.
+      2. If foundation details, slab thickness, rebar schedules, or structural wall sections are NOT visible, you MUST list them under 'Missing Information'.
+      3. Break the report into these sections: Project Overview, Material Takeoff, Labor Takeoff, Detailed Cost Breakdown, and Mandatory Missing Information.` }
     ];
 
     for (const file of files) {
