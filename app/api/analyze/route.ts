@@ -8,7 +8,6 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const files = formData.getAll("files") as File[]; 
     
-    // Grab the details you typed into the frontend form
     const trade = formData.get("trade") || "General Contractor";
     const ceilingHeight = formData.get("ceilingHeight") || "Not specified";
     const projectType = formData.get("projectType") || "Not specified";
@@ -21,11 +20,16 @@ export async function POST(req: Request) {
 
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
-    // Build a prompt that actually uses your form data
+    // ENHANCED PROMPT: Explicitly forcing the AI to hunt for missing structural/MEP details
     const parts: any[] = [
-      { text: `You are an expert construction estimator. Analyze these blueprints and generate a takeoff report for a ${trade} contractor. 
+      { text: `You are an elite construction estimator. Perform a thorough, professional quantity takeoff for a ${trade} contractor.
       Context: ${projectType} project, ${sqft} sqft, ${ceilingHeight} ceilings. Labor rate: ${laborRate}.
-      Break the report down into these exact sections: Project Overview, Material Takeoff, Labor Takeoff, Cost Breakdown, and Missing Information.` }
+      
+      INSTRUCTIONS:
+      1. Analyze the uploaded plans in extreme detail. 
+      2. If foundation details, slab thickness, rebar schedules, or structural wall sections are NOT visible in the provided images, you MUST list them under 'Missing Information' as critical items needed for a final bid.
+      3. Do not gloss over structural elements—identify columns, load-bearing walls, and roof plan requirements if present.
+      4. Break the report into these sections: Project Overview, Material Takeoff, Labor Takeoff, Detailed Cost Breakdown, and Mandatory Missing Information (specifically call out missing structural specs).` }
     ];
 
     for (const file of files) {
@@ -45,9 +49,7 @@ export async function POST(req: Request) {
       contents: [{ role: "user", parts }],
     });
 
-    // Extract the text and send it directly back to the frontend without forcing JSON
     const rawText = result.response.text();
-
     return NextResponse.json({ success: true, data: rawText });
 
   } catch (error) {
