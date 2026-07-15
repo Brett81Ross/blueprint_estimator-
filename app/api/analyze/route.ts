@@ -1,114 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// 1. Initialize with your specific model
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ 
+  model: 'gemini-3.5-flash',
+  generationConfig: { responseMimeType: "application/json" } // Ensures machine-readable takeoff data
+});
+
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB safety limit
+
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey.trim() === "") {
-      return NextResponse.json({ 
-        error: 'Configuration Error: Server environment variable "GEMINI_API_KEY" is missing. Please check your Vercel project settings.' 
-      }, { status: 500 });
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
     const formData = await req.formData();
     const files = formData.getAll('files') as File[];
     
-    const trade = formData.get('trade') || 'General';
-    const ceilingHeight = formData.get('ceilingHeight') || 'Unknown';
-    const projectType = formData.get('projectType') || 'Unknown';
-    const location = formData.get('location') || 'Unknown';
-    const sqft = formData.get('sqft') || 'Unknown';
-    const floors = formData.get('floors') || 'Unknown';
-    const laborRate = formData.get('laborRate') || 'Standard';
-
+    // Validate inputs
     if (!files || files.length === 0) {
-      return NextResponse.json({ error: 'Validation Error: No blueprint files were uploaded.' }, { status: 400 });
+      return NextResponse.json({ error: 'No files uploaded.' }, { status: 400 });
     }
 
-    // Process file arrays into clean base64 chunks
+    // Process files with size checks
     const fileParts = await Promise.all(
       files.map(async (file) => {
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        
-        let mimeType = file.type;
-        const nameLower = file.name.toLowerCase();
-
-        if (nameLower.endsWith('.jpg') || nameLower.endsWith('.jpeg')) {
-          mimeType = 'image/jpeg';
-        } else if (nameLower.endsWith('.png')) {
-          mimeType = 'image/png';
-        } else if (nameLower.endsWith('.webp')) {
-          mimeType = 'image/webp';
-        } else if (nameLower.endsWith('.pdf')) {
-          mimeType = 'application/pdf';
-        } else if (!mimeType) {
-          mimeType = 'image/jpeg';
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(`File ${file.name} exceeds the 20MB limit.`);
         }
-
+        
+        const bytes = await file.arrayBuffer();
         return {
           inlineData: {
-            data: buffer.toString('base64'),
-            mimeType: mimeType
+            data: Buffer.from(bytes).toString('base64'),
+            mimeType: file.type || 'image/jpeg'
           },
         };
       })
     );
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
-
+    // Optimized prompt for Gemini 3.5 Flash
     const prompt = `
-      You are an expert construction estimator. Analyze these blueprints/documents and generate a highly structured takeoff report.
+      You are an expert construction takeoff engine. Analyze these blueprints.
+      Return ONLY a JSON object. No markdown, no conversational filler.
       
-      Project Parameters:
-      - Trade Focus: ${trade}
-      - Ceiling Height: ${ceilingHeight}
-      - Project Type: ${projectType}
-      - Location/Region: ${location}
-      - Square Footage: ${sqft}
-      - Number of Floors: ${floors}
-      - Labor Rate Assumption: ${laborRate}
-
-      Format your response EXACTLY with these markdown sections and tables:
-
-      ### Project Overview
-      Trade: ${trade}
-      Project Type: ${projectType}
-      Estimated Scope: (Briefly describe what is visible across all documents)
-      Confidence Score: (Rate 1-100% based on drawing clarity)
-
-      ### Material Takeoff
-      (Create a markdown table with columns: Item | Quantity | Unit)
-
-      ### Labor Takeoff
-      (Create a markdown table with columns: Task | Hours)
-
-      ### Cost Breakdown
-      Materials: $...
-      Labor: $...
-      Equipment: $...
-      Waste Factor: ...%
-      Estimated Total: $...
-
-      ### Timeline
-      Crew Size: ...
-      Estimated Days: ...
-      Milestones: (List key phases)
-
-      ### Missing Information
-      (List any critical details missing from the blueprints needed for 100% accuracy)
+      Structure:
+      {
+        "trade": "${formData.get('trade') || 'General'}",
+        "takeoff_items": [{"item": "string", "count": number, "unit": "string", "location": "string"}],
+        "linear_measurements": {"total_feet": number},
+        "area_sq_ft": number,
+        "confidence_score": number
+      }
     `;
 
     const result = await model.generateContent([prompt, ...fileParts]);
-    const response = await result.response;
-    const text = response.text();
+    const jsonResponse = JSON.parse(result.response.text());
 
-    return NextResponse.json({ result: text }, { status: 200 });
+    return NextResponse.json({ data: jsonResponse }, { status: 200 });
 
   } catch (error: any) {
-    return NextResponse.json({ 
-      error: `Server Error: ${error?.message || 'An unexpected error occurred.'}` 
-    }, { status: 500 });
+    console.error("Analysis Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
