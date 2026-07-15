@@ -99,18 +99,46 @@ export default function Home(props: any) {
         </button>
       </div>
 
-      {(report || errorMessage) && (
+      {      {(report || errorMessage) && (
         <div ref={reportRef} className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mt-6">
-          {errorMessage && <div className="text-red-400">{errorMessage}</div>}
+          {errorMessage && <div className="text-red-400 font-bold p-2 bg-red-950/20 rounded">{errorMessage}</div>}
+          
           {report && (
-            <div className="space-y-2">
-              {report.split('\n').map((line, i) => (
-                <p key={i} className="text-sm text-zinc-300 py-1">{line}</p>
-              ))}
+            <div className="flex flex-col gap-6">
+              {report.split('\n').map((line, i) => {
+                // Header detection for clean separation
+                if (line.includes('##') || line.match(/Overview|Takeoff|Cost|Timeline|Missing/i)) {
+                  return (
+                    <h3 key={i} className="text-md font-black text-orange-500 uppercase tracking-widest border-b border-zinc-700 pb-2 mt-4">
+                      {line.replace(/#/g, '')}
+                    </h3>
+                  );
+                }
+                
+                // Key-Value row detection
+                if (line.includes(':')) {
+                  const [label, ...val] = line.split(':');
+                  const valueText = val.join(':').trim();
+                  const isMoney = /\$[0-9]/.test(valueText);
+                  
+                  return (
+                    <div key={i} className="flex justify-between items-center py-1 border-b border-zinc-800/50">
+                      <span className="text-zinc-500 font-bold text-xs uppercase tracking-wider">{label.trim()}</span>
+                      <span className={`text-sm ${isMoney ? 'font-black text-green-400' : 'text-zinc-200 font-medium'}`}>
+                        {valueText}
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Plain text paragraphs
+                if (line.trim()) {
+                  return <p key={i} className="text-sm text-zinc-400 font-normal leading-relaxed">{line}</p>;
+                }
+                
+                return null;
+              })}
             </div>
           )}
         </div>
       )}
-    </main>
-  )
-}
