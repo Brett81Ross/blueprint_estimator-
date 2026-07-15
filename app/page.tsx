@@ -12,6 +12,7 @@ export default function Home(props: any) {
   const [sqft, setSqft] = useState('')
   const [floors, setFloors] = useState('')
   const [laborRate, setLaborRate] = useState('')
+  const [scale, setScale] = useState('1/4" = 1\'0"')
   
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
@@ -58,6 +59,7 @@ export default function Home(props: any) {
       formData.append('trade', trade); formData.append('ceilingHeight', ceilingHeight);
       formData.append('projectType', projectType); formData.append('location', location);
       formData.append('sqft', sqft); formData.append('floors', floors); formData.append('laborRate', laborRate);
+      formData.append('scale', scale);
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
       const data = await response.json()
@@ -76,8 +78,43 @@ export default function Home(props: any) {
         <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Blueprint <span className="text-orange-500">AI Estimator</span></h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)} />
+          <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)}>
+            <option>General Contractor</option>
+            <option>Architect</option>
+            <option>Carpenter / Framer</option>
+            <option>Concrete & Masonry</option>
+            <option>Electrician</option>
+            <option>Excavator</option>
+            <option>Flooring Specialist</option>
+            <option>HVAC Technician</option>
+            <option>Insulation Contractor</option>
+            <option>Landscaper</option>
+            <option>Low Voltage / Security</option>
+            <option>Painter</option>
+            <option>Plumber</option>
+            <option>Roofing Contractor</option>
+            <option>Siding Contractor</option>
+            <option>Structural Engineer</option>
+          </select>
           <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Ceiling Height *" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)} />
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Project Type" value={projectType} onChange={(e) => setProjectType(e.target.value)} />
+          <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={scale} onChange={(e) => setScale(e.target.value)}>
+            <option>1/8" = 1'0"</option>
+            <option>1/4" = 1'0"</option>
+            <option>1/2" = 1'0"</option>
+            <option>1" = 1'0"</option>
+            <option>1:50</option>
+            <option>1:100</option>
+          </select>
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Total SqFt (Optional)" value={sqft} onChange={(e) => setSqft(e.target.value)} />
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Number of Floors (Optional)" value={floors} onChange={(e) => setFloors(e.target.value)} />
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Location (Optional)" value={location} onChange={(e) => setLocation(e.target.value)} />
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={(e) => setLaborRate(e.target.value)} />
+        </div>
+
+        <div className="flex gap-4 mb-6">
+          <label className="flex-1 border-2 border-orange-500/50 p-6 rounded-xl text-orange-500 text-center font-bold cursor-pointer hover:bg-orange-500/10">Take Blueprint Pics<input type="file" className="hidden" onChange={handleFileChange} /></label>
+          <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
         </div>
         
         <button onClick={handleUpload} disabled={loading} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase">
