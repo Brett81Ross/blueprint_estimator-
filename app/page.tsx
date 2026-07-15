@@ -29,6 +29,8 @@ export default function Home(props: any) {
     if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files)
       setFiles((prevFiles) => [...prevFiles, ...newFiles])
+      setReport(null) 
+      setErrorMessage(null)
     }
   }
 
@@ -38,8 +40,8 @@ export default function Home(props: any) {
 
   const handleUpload = async () => {
     if (files.length === 0 || !ceilingHeight) return alert("Required fields missing.");
-    
-    setLoading(true)
+    setLoading(true); setReport(null); setErrorMessage(null);
+
     const formData = new FormData()
     const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }
 
@@ -61,64 +63,55 @@ export default function Home(props: any) {
       if (response.ok) setReport(data.data) 
       else setErrorMessage(data.error)
     } catch (e: any) {
-      setErrorMessage("System error. Please try again.")
+      setErrorMessage("System error.")
     } finally {
       setLoading(false)
     }
   }
 
-  // UPDATED FORMATTER: More aggressive cleaning
+  // CLEANER: Keeps your original structure but strips just the LaTeX/math junk
   const formatReportText = (text: string) => {
     return text
-      .replace(/###\s+/g, '') 
-      .replace(/\*\*/g, '')   
-      .replace(/\|/g, '')     
-      .replace(/:{3,}/g, '')  
       .replace(/\\text\{([^}]+)\}/gi, ' $1 ') 
       .replace(/\\times/gi, 'x')              
       .replace(/\^2/g, ' sq ft')              
       .replace(/\^3/g, ' cubic yds')          
       .replace(/\\/g, '')                     
-      .replace(/\$(?![0-9])/g, '')            
-      .replace(/^\s*\*\s*(?:\*\s*)?/gm, '')   
-      .replace(/ +/g, ' ')                    
+      .replace(/\$/g, '')                     
       .trim();
   }
 
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-3xl p-6 md:p-8">
-        <h1 className="text-2xl font-black text-white uppercase mb-8">Blueprint <span className="text-orange-500">AI Estimator</span></h1>
+      <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8">
+        <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Blueprint <span className="text-orange-500">AI Estimator</span></h1>
         
-        {/* Simplified Input Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm" value={trade} onChange={(e) => setTrade(e.target.value)} />
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm" placeholder="Ceiling Height *" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)} />
+          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Ceiling Height *" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)} />
         </div>
-        <button onClick={handleUpload} className="w-full bg-orange-500 font-black py-4 rounded-xl uppercase">
-          {loading ? 'Analyzing...' : 'Generate Report'}
+        
+        <button onClick={handleUpload} disabled={loading} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase">
+          {loading ? 'Processing...' : 'Generate Takeoff Report'}
         </button>
       </div>
 
-      {report && (
-        <div ref={reportRef} className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mt-8">
-          {formatReportText(report).split('\n').map((line, i) => {
-            if (!line.trim()) return null;
-            // Clean section styling
-            if (line.match(/(Overview|Takeoff|Cost|Timeline|Missing)/i)) {
-              return <h3 key={i} className="text-xl font-bold text-orange-400 mt-8 mb-4 border-l-4 border-orange-500 pl-4">{line}</h3>;
-            }
-            if (line.includes(':')) {
-              const [label, val] = line.split(':');
-              return (
-                <div key={i} className="flex justify-between py-2 border-b border-zinc-800 text-sm">
-                  <span className="text-zinc-500 uppercase font-bold">{label}</span>
-                  <span className={val.includes('$') ? "text-green-400 font-bold" : "text-zinc-200"}>{val}</span>
-                </div>
-              );
-            }
-            return <p key={i} className="text-zinc-300 py-1 text-sm">{line}</p>;
-          })}
+      {(report || errorMessage) && (
+        <div ref={reportRef} className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mt-6">
+          {errorMessage && <div className="text-red-400">{errorMessage}</div>}
+          {report && (
+            <div className="space-y-2">
+              {formatReportText(report).split('\n').map((line, i) => {
+                if (!line.trim()) return null;
+                // Keep your original header logic but clean the styling
+                if (line.includes('##') || line.match(/Overview|Takeoff|Cost|Timeline|Missing/i)) {
+                  return <h3 key={i} className="text-lg font-bold text-orange-400 mt-4 border-b border-zinc-700 pb-1">{line.replace(/#/g, '')}</h3>;
+                }
+                // Keep the row layout
+                return <p key={i} className="text-sm text-zinc-300 font-medium py-1">{line}</p>;
+              })}
+            </div>
+          )}
         </div>
       )}
     </main>
