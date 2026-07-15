@@ -39,7 +39,7 @@ export default function Home(props: any) {
   }
 
   const handleUpload = async () => {
-    if (files.length === 0 || !ceilingHeight) return alert("At least one blueprint and Ceiling Height are required.");
+    if (files.length === 0 || !ceilingHeight) return alert("Required fields missing.");
     
     setLoading(true); setReport(null); setErrorMessage(null);
 
@@ -75,12 +75,26 @@ export default function Home(props: any) {
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8">
         <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Blueprint <span className="text-orange-500">AI Estimator</span></h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)} />
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Ceiling Height *" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)} />
+        <div className="space-y-4 mb-6">
+          <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)}>
+            <option>General Contractor</option><option>Electrical</option><option>Plumbing</option><option>HVAC</option>
+          </select>
+          <input className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Ceiling Height *" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)} />
+          <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={projectType} onChange={(e) => setProjectType(e.target.value)}>
+            <option>Residential</option><option>Commercial</option>
+          </select>
+          <input className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="e.g., 2500" value={sqft} onChange={(e) => setSqft(e.target.value)} />
+          <input className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="e.g., 2" value={floors} onChange={(e) => setFloors(e.target.value)} />
+          <input className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="City, State" value={location} onChange={(e) => setLocation(e.target.value)} />
+          <input className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="e.g., $65/hr" value={laborRate} onChange={(e) => setLaborRate(e.target.value)} />
+        </div>
+
+        <div className="flex gap-4 mb-6">
+          <label className="flex-1 border-2 border-orange-500/50 p-6 rounded-xl text-orange-500 text-center font-bold cursor-pointer">Take Blueprint Pics<input type="file" className="hidden" onChange={handleFileChange} /></label>
+          <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
         </div>
         
-        <button onClick={handleUpload} disabled={loading} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase">
+        <button onClick={handleUpload} disabled={loading || files.length === 0} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase">
           {loading ? 'Processing...' : 'Generate Takeoff Report'}
         </button>
       </div>
@@ -90,9 +104,9 @@ export default function Home(props: any) {
           {errorMessage && <div className="text-red-400">{errorMessage}</div>}
           {report && (
             <div className="space-y-2">
-              {report.split('\n').map((line, i) => {
-                return <p key={i} className="text-sm text-zinc-300 font-medium py-1">{line}</p>;
-              })}
+              {report.split('\n').map((line, i) => (
+                <p key={i} className="text-sm text-zinc-300 py-1">{line}</p>
+              ))}
             </div>
           )}
         </div>
