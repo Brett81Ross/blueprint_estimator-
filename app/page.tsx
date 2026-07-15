@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 
-// FIX: Added (props: any) to satisfy Next.js 14 strict page typing
 export default function Home(props: any) {
   // Form State
   const [files, setFiles] = useState<File[]>([])
@@ -67,18 +66,15 @@ export default function Home(props: any) {
     }
 
     try {
-      // Loop through and compress each file before appending
       for (const file of files) {
         if (file.type.startsWith('image/')) {
           const compressedFile = await imageCompression(file, options);
           formData.append('files', compressedFile);
         } else {
-          // If it's a PDF, don't try to compress it as an image
           formData.append('files', file); 
         }
       }
       
-      // Append the text fields
       formData.append('trade', trade)
       formData.append('ceilingHeight', ceilingHeight)
       formData.append('projectType', projectType)
@@ -110,7 +106,6 @@ export default function Home(props: any) {
     window.print()
   }
 
-  // UI Cleaner Helper: Cleans out markdown syntax artifacts dynamically
   const formatReportText = (text: string) => {
     return text
       .replace(/###\s+/g, '') 
@@ -122,7 +117,6 @@ export default function Home(props: any) {
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100 selection:bg-orange-500 selection:text-white">
       
-      {/* GLOBAL CSS PRINT OVERRIDE STYLES */}
       <style jsx global>{`
         @media print {
           body, main, html {
@@ -270,7 +264,6 @@ export default function Home(props: any) {
               </label>
             </div>
 
-            {/* List Selection Items */}
             {files.length > 0 && (
               <div className="flex flex-col gap-2 mt-4">
                 {files.map((file, index) => (
@@ -313,7 +306,7 @@ export default function Home(props: any) {
         </div>
       </div>
 
-      {/* MODERNIZED RESULTS LAYOUT CONTAINER WITH SCROLL ANCHOR LINK */}
+      {/* DYNAMIC RESULTS DASHBOARD */}
       {(report || errorMessage) && (
         <div 
           ref={reportRef}
@@ -346,32 +339,44 @@ export default function Home(props: any) {
                 
                 if (!trimmed) return <div key={i} className="h-2"></div>;
 
-                if (
-                  trimmed.startsWith('Project Overview') || 
-                  trimmed.startsWith('Material Takeoff') || 
-                  trimmed.startsWith('Labor Takeoff') || 
-                  trimmed.startsWith('Cost Breakdown') || 
-                  trimmed.startsWith('Timeline') || 
-                  trimmed.startsWith('Missing Information')
-                ) {
-                  return (
-                    <h3 key={i} className="print-title text-md font-black text-orange-400 uppercase tracking-widest border-b border-zinc-800 print-border pb-2 mt-6 mb-3 first:mt-2">
-                      {trimmed}
-                    </h3>
-                  );
+                // DYNAMIC HEADERS WITH EMOJIS & COLORS
+                if (trimmed.startsWith('Project Overview')) {
+                  return <h3 key={i} className="print-title text-2xl font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/30 print-border pb-2 mt-8 mb-4">🏗️ {trimmed}</h3>;
+                }
+                if (trimmed.startsWith('Material Takeoff')) {
+                  return <h3 key={i} className="print-title text-2xl font-black text-emerald-400 uppercase tracking-widest border-b border-emerald-500/30 print-border pb-2 mt-8 mb-4">🧱 {trimmed}</h3>;
+                }
+                if (trimmed.startsWith('Labor Takeoff')) {
+                  return <h3 key={i} className="print-title text-2xl font-black text-amber-400 uppercase tracking-widest border-b border-amber-500/30 print-border pb-2 mt-8 mb-4">👷 {trimmed}</h3>;
+                }
+                if (trimmed.startsWith('Cost Breakdown')) {
+                  return <h3 key={i} className="print-title text-3xl font-black text-green-400 uppercase tracking-widest border-b border-green-500/30 print-border pb-2 mt-10 mb-4">💰 {trimmed}</h3>;
+                }
+                if (trimmed.startsWith('Timeline')) {
+                  return <h3 key={i} className="print-title text-xl font-black text-purple-400 uppercase tracking-widest border-b border-purple-500/30 print-border pb-2 mt-8 mb-4">⏳ {trimmed}</h3>;
+                }
+                if (trimmed.startsWith('Missing Information')) {
+                  return <h3 key={i} className="print-title text-xl font-black text-red-400 uppercase tracking-widest border-b border-red-500/30 print-border pb-2 mt-8 mb-4">⚠️ {trimmed}</h3>;
                 }
 
+                // DYNAMIC LIST ITEMS
                 if (trimmed.includes(':')) {
-                  const [title, value] = trimmed.split(/:(.+)/);
+                  const [title, ...rest] = trimmed.split(':');
+                  const value = rest.join(':').trim(); 
+                  
+                  // Highlight financial numbers in green
+                  const isMoney = value.includes('$');
+                  const valueStyle = isMoney ? 'text-green-400 font-black text-lg' : 'text-zinc-100 font-semibold text-base';
+
                   return (
-                    <div key={i} className="flex flex-col sm:flex-row sm:items-center py-1 border-b border-zinc-800/40 print-border text-sm">
-                      <span className="print-row-title font-bold text-zinc-400 w-48 shrink-0">{title.trim()}</span>
-                      <span className="print-row-value text-zinc-100 font-medium mt-0.5 sm:mt-0">{value?.trim()}</span>
+                    <div key={i} className="flex flex-col sm:flex-row sm:items-center py-2 px-3 border border-transparent hover:border-zinc-800/50 hover:bg-zinc-800/30 rounded-lg transition-all print-border">
+                      <span className="print-row-title font-bold text-zinc-500 text-xs tracking-widest w-1/3 shrink-0 uppercase">{title.trim()}</span>
+                      <span className={`print-row-value mt-1 sm:mt-0 ${valueStyle}`}>{value}</span>
                     </div>
                   );
                 }
 
-                return <p key={i} className="text-sm text-zinc-300 font-normal pl-1 print-row-value">{trimmed}</p>;
+                return <p key={i} className="text-base text-zinc-300 font-medium pl-3 print-row-value py-1">{trimmed}</p>;
               })}
             </div>
           )}
