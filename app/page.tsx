@@ -22,7 +22,6 @@ export default function Home(props: any) {
   // Anchor target reference for the scroll tracking engine
   const reportRef = useRef<HTMLDivElement>(null)
 
-  // Automatically triggers a smooth downward scroll anchor once the report payload registers
   useEffect(() => {
     if (report && reportRef.current) {
       reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -58,7 +57,6 @@ export default function Home(props: any) {
 
     const formData = new FormData()
     
-    // COMPRESSION OPTIONS: Max 1MB size, max 1920px width/height
     const options = {
       maxSizeMB: 1,
       maxWidthOrHeight: 1920,
@@ -106,21 +104,21 @@ export default function Home(props: any) {
     window.print()
   }
 
-  // UPGRADED CLEANER: Strips out LaTeX math code and weird bullet combinations
+  // AGGRESSIVE TEXT CLEANER
   const formatReportText = (text: string) => {
     return text
       .replace(/###\s+/g, '') 
       .replace(/\*\*/g, '')   
       .replace(/\|/g, '')     
       .replace(/-{3,}/g, '')  
-      .replace(/\\text\{([^}]+)\}/gi, ' $1 ') // Fixes \text{ cm} to just cm
-      .replace(/\\times/gi, 'x')              // Fixes \times to x
-      .replace(/\^2/g, ' sq ft')              // Changes ^2 to sq ft
-      .replace(/\^3/g, ' cubic yds')          // Changes ^3 to cubic yds
-      .replace(/\\/g, '')                     // Removes leftover slashes
-      .replace(/\$(?![0-9])/g, '')            // Removes math $ wrappers, keeps money
-      .replace(/^\s*\*\s*(?:\*\s*)?/gm, '')   // Removes leading * or * * bullets
-      .replace(/ +/g, ' ')                    // Fixes double spaces
+      .replace(/\\text\{([^}]+)\}/gi, ' $1 ') 
+      .replace(/\\times/gi, 'x')              
+      .replace(/\^2/g, ' sq ft')              
+      .replace(/\^3/g, ' cubic yds')          
+      .replace(/\\/g, '')                     
+      .replace(/\$(?![0-9])/g, '')            
+      .replace(/^\s*\*\s*(?:\*\s*)?/gm, '')   
+      .replace(/ +/g, ' ')                    
       .trim();
   }
 
@@ -155,12 +153,6 @@ export default function Home(props: any) {
           }
           .print-border {
             border-color: #e4e4e7 !important;
-          }
-          .print-row-title {
-            color: #71717a !important;
-          }
-          .print-row-value {
-            color: #18181b !important;
           }
         }
       `}</style>
@@ -316,65 +308,74 @@ export default function Home(props: any) {
         </div>
       </div>
 
-      {/* DYNAMIC RESULTS DASHBOARD */}
+      {/* NEW SAAS-STYLE DASHBOARD */}
       {(report || errorMessage) && (
         <div 
           ref={reportRef}
-          className="print-area w-full max-w-3xl bg-zinc-950 border-t border-zinc-800 md:border md:border-zinc-800 md:rounded-2xl p-6 md:p-8 mt-6 overflow-hidden relative shadow-2xl scroll-mt-6"
+          className="print-area w-full max-w-3xl bg-zinc-950 border border-zinc-800 md:rounded-2xl p-4 md:p-8 mt-6 overflow-hidden relative shadow-2xl scroll-mt-6"
         >
-          <div className="flex items-center justify-between mb-6 border-b print-border border-zinc-800 pb-4">
-            <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="no-print w-2 h-6 bg-orange-500 rounded-full inline-block"></span>
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-zinc-800 print-border">
+            <h2 className="text-xl md:text-2xl font-black text-white uppercase tracking-wider flex items-center gap-3">
+              <span className="no-print w-2 h-8 bg-orange-500 rounded-full inline-block"></span>
               Estimate Dashboard
             </h2>
             <button 
               onClick={triggerPdfDownload}
-              className="no-print bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold text-xs py-2.5 px-4 rounded-lg tracking-wider uppercase transition-colors"
+              className="no-print bg-zinc-100 hover:bg-white text-zinc-900 font-bold text-xs py-2.5 px-4 rounded-lg tracking-wider uppercase transition-colors shadow-sm"
             >
               ⬇️ Download PDF
             </button>
           </div>
           
           {errorMessage && (
-            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-medium text-sm whitespace-pre-wrap">
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 font-medium text-sm whitespace-pre-wrap mb-4">
               <div className="font-bold text-red-500 uppercase tracking-wider text-xs mb-1">⚠️ Error Encountered</div>
               {errorMessage}
             </div>
           )}
 
           {report && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-inner text-zinc-200 leading-relaxed space-y-4 print-area">
+            <div className="flex flex-col gap-4">
               {formatReportText(report).split('\n').map((line, i) => {
                 const trimmed = line.trim();
                 
-                if (!trimmed) return <div key={i} className="h-2"></div>;
+                if (!trimmed) return null;
 
-                // DYNAMIC HEADERS
-                if (trimmed.startsWith('Project Overview')) return <h3 key={i} className="print-title text-2xl font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/30 print-border pb-2 mt-8 mb-4">🏗️ {trimmed}</h3>;
-                if (trimmed.startsWith('Material Takeoff')) return <h3 key={i} className="print-title text-2xl font-black text-emerald-400 uppercase tracking-widest border-b border-emerald-500/30 print-border pb-2 mt-8 mb-4">🧱 {trimmed}</h3>;
-                if (trimmed.startsWith('Labor Takeoff')) return <h3 key={i} className="print-title text-2xl font-black text-amber-400 uppercase tracking-widest border-b border-amber-500/30 print-border pb-2 mt-8 mb-4">👷 {trimmed}</h3>;
-                if (trimmed.startsWith('Cost Breakdown')) return <h3 key={i} className="print-title text-3xl font-black text-green-400 uppercase tracking-widest border-b border-green-500/30 print-border pb-2 mt-10 mb-4">💰 {trimmed}</h3>;
-                if (trimmed.startsWith('Timeline')) return <h3 key={i} className="print-title text-xl font-black text-purple-400 uppercase tracking-widest border-b border-purple-500/30 print-border pb-2 mt-8 mb-4">⏳ {trimmed}</h3>;
-                if (trimmed.startsWith('Missing Information')) return <h3 key={i} className="print-title text-xl font-black text-red-400 uppercase tracking-widest border-b border-red-500/30 print-border pb-2 mt-8 mb-4">⚠️ {trimmed}</h3>;
+                // MODERN CARD HEADERS
+                if (trimmed.startsWith('Project Overview')) return <div key={i} className="mt-8 mb-2 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg inline-block self-start"><h3 className="print-title text-lg font-black text-blue-400 uppercase tracking-widest">🏗️ {trimmed}</h3></div>;
+                if (trimmed.startsWith('Material Takeoff')) return <div key={i} className="mt-8 mb-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg inline-block self-start"><h3 className="print-title text-lg font-black text-emerald-400 uppercase tracking-widest">🧱 {trimmed}</h3></div>;
+                if (trimmed.startsWith('Labor Takeoff')) return <div key={i} className="mt-8 mb-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg inline-block self-start"><h3 className="print-title text-lg font-black text-amber-400 uppercase tracking-widest">👷 {trimmed}</h3></div>;
+                if (trimmed.startsWith('Cost Breakdown')) return <div key={i} className="mt-10 mb-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-lg inline-block self-start"><h3 className="print-title text-xl font-black text-green-400 uppercase tracking-widest">💰 {trimmed}</h3></div>;
+                if (trimmed.startsWith('Timeline')) return <div key={i} className="mt-8 mb-2 px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg inline-block self-start"><h3 className="print-title text-lg font-black text-purple-400 uppercase tracking-widest">⏳ {trimmed}</h3></div>;
+                if (trimmed.startsWith('Missing Information')) return <div key={i} className="mt-8 mb-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-lg inline-block self-start"><h3 className="print-title text-lg font-black text-red-400 uppercase tracking-widest">⚠️ {trimmed}</h3></div>;
 
-                // DYNAMIC LIST ITEMS
+                // STRUCTURED DATA ROWS
                 if (trimmed.includes(':')) {
                   const [title, ...rest] = trimmed.split(':');
                   const value = rest.join(':').trim(); 
                   
-                  // HIGHLIGHT LOGIC FIXED: Only trigger green if the $ is followed immediately by a number
+                  // Money gets a glowing pill badge, regular text gets standard styling
                   const isMoney = /\$[0-9]/.test(value);
-                  const valueStyle = isMoney ? 'text-green-400 font-black text-lg' : 'text-zinc-100 font-semibold text-base';
 
                   return (
-                    <div key={i} className="flex flex-col sm:flex-row sm:items-center py-2 px-3 border border-transparent hover:border-zinc-800/50 hover:bg-zinc-800/30 rounded-lg transition-all print-border">
-                      <span className="print-row-title font-bold text-zinc-500 text-xs tracking-widest w-1/3 shrink-0 uppercase">{title.trim()}</span>
-                      <span className={`print-row-value mt-1 sm:mt-0 ${valueStyle}`}>{value}</span>
+                    <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-zinc-900 border border-zinc-800 rounded-xl hover:border-zinc-700 transition-colors gap-2 sm:gap-4 print-border">
+                      <span className="text-zinc-400 font-bold text-xs tracking-widest uppercase sm:w-1/3 shrink-0">{title.trim()}</span>
+                      
+                      {isMoney ? (
+                        <span className="bg-emerald-400/10 text-emerald-400 font-black text-lg px-3 py-1 rounded-md border border-emerald-400/20 text-left sm:text-right self-start sm:self-auto">
+                          {value}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-200 font-medium text-sm sm:text-base text-left sm:text-right">
+                          {value}
+                        </span>
+                      )}
                     </div>
                   );
                 }
 
-                return <p key={i} className="text-base text-zinc-300 font-medium pl-3 print-row-value py-1">{trimmed}</p>;
+                // REGULAR PARAGRAPH TEXT
+                return <p key={i} className="text-sm text-zinc-400 font-medium px-2 leading-relaxed">{trimmed}</p>;
               })}
             </div>
           )}
