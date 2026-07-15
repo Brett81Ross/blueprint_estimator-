@@ -106,12 +106,22 @@ export default function Home(props: any) {
     window.print()
   }
 
+  // UPGRADED CLEANER: Strips out LaTeX math code and weird bullet combinations
   const formatReportText = (text: string) => {
     return text
       .replace(/###\s+/g, '') 
       .replace(/\*\*/g, '')   
       .replace(/\|/g, '')     
       .replace(/-{3,}/g, '')  
+      .replace(/\\text\{([^}]+)\}/gi, ' $1 ') // Fixes \text{ cm} to just cm
+      .replace(/\\times/gi, 'x')              // Fixes \times to x
+      .replace(/\^2/g, ' sq ft')              // Changes ^2 to sq ft
+      .replace(/\^3/g, ' cubic yds')          // Changes ^3 to cubic yds
+      .replace(/\\/g, '')                     // Removes leftover slashes
+      .replace(/\$(?![0-9])/g, '')            // Removes math $ wrappers, keeps money
+      .replace(/^\s*\*\s*(?:\*\s*)?/gm, '')   // Removes leading * or * * bullets
+      .replace(/ +/g, ' ')                    // Fixes double spaces
+      .trim();
   }
 
   return (
@@ -339,33 +349,21 @@ export default function Home(props: any) {
                 
                 if (!trimmed) return <div key={i} className="h-2"></div>;
 
-                // DYNAMIC HEADERS WITH EMOJIS & COLORS
-                if (trimmed.startsWith('Project Overview')) {
-                  return <h3 key={i} className="print-title text-2xl font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/30 print-border pb-2 mt-8 mb-4">🏗️ {trimmed}</h3>;
-                }
-                if (trimmed.startsWith('Material Takeoff')) {
-                  return <h3 key={i} className="print-title text-2xl font-black text-emerald-400 uppercase tracking-widest border-b border-emerald-500/30 print-border pb-2 mt-8 mb-4">🧱 {trimmed}</h3>;
-                }
-                if (trimmed.startsWith('Labor Takeoff')) {
-                  return <h3 key={i} className="print-title text-2xl font-black text-amber-400 uppercase tracking-widest border-b border-amber-500/30 print-border pb-2 mt-8 mb-4">👷 {trimmed}</h3>;
-                }
-                if (trimmed.startsWith('Cost Breakdown')) {
-                  return <h3 key={i} className="print-title text-3xl font-black text-green-400 uppercase tracking-widest border-b border-green-500/30 print-border pb-2 mt-10 mb-4">💰 {trimmed}</h3>;
-                }
-                if (trimmed.startsWith('Timeline')) {
-                  return <h3 key={i} className="print-title text-xl font-black text-purple-400 uppercase tracking-widest border-b border-purple-500/30 print-border pb-2 mt-8 mb-4">⏳ {trimmed}</h3>;
-                }
-                if (trimmed.startsWith('Missing Information')) {
-                  return <h3 key={i} className="print-title text-xl font-black text-red-400 uppercase tracking-widest border-b border-red-500/30 print-border pb-2 mt-8 mb-4">⚠️ {trimmed}</h3>;
-                }
+                // DYNAMIC HEADERS
+                if (trimmed.startsWith('Project Overview')) return <h3 key={i} className="print-title text-2xl font-black text-blue-400 uppercase tracking-widest border-b border-blue-500/30 print-border pb-2 mt-8 mb-4">🏗️ {trimmed}</h3>;
+                if (trimmed.startsWith('Material Takeoff')) return <h3 key={i} className="print-title text-2xl font-black text-emerald-400 uppercase tracking-widest border-b border-emerald-500/30 print-border pb-2 mt-8 mb-4">🧱 {trimmed}</h3>;
+                if (trimmed.startsWith('Labor Takeoff')) return <h3 key={i} className="print-title text-2xl font-black text-amber-400 uppercase tracking-widest border-b border-amber-500/30 print-border pb-2 mt-8 mb-4">👷 {trimmed}</h3>;
+                if (trimmed.startsWith('Cost Breakdown')) return <h3 key={i} className="print-title text-3xl font-black text-green-400 uppercase tracking-widest border-b border-green-500/30 print-border pb-2 mt-10 mb-4">💰 {trimmed}</h3>;
+                if (trimmed.startsWith('Timeline')) return <h3 key={i} className="print-title text-xl font-black text-purple-400 uppercase tracking-widest border-b border-purple-500/30 print-border pb-2 mt-8 mb-4">⏳ {trimmed}</h3>;
+                if (trimmed.startsWith('Missing Information')) return <h3 key={i} className="print-title text-xl font-black text-red-400 uppercase tracking-widest border-b border-red-500/30 print-border pb-2 mt-8 mb-4">⚠️ {trimmed}</h3>;
 
                 // DYNAMIC LIST ITEMS
                 if (trimmed.includes(':')) {
                   const [title, ...rest] = trimmed.split(':');
                   const value = rest.join(':').trim(); 
                   
-                  // Highlight financial numbers in green
-                  const isMoney = value.includes('$');
+                  // HIGHLIGHT LOGIC FIXED: Only trigger green if the $ is followed immediately by a number
+                  const isMoney = /\$[0-9]/.test(value);
                   const valueStyle = isMoney ? 'text-green-400 font-black text-lg' : 'text-zinc-100 font-semibold text-base';
 
                   return (
