@@ -70,17 +70,6 @@ export default function Home(props: any) {
     }
   }
 
-  const formatReportText = (text: string) => {
-    return text
-      .replace(/\\text\{([^}]+)\}/gi, ' $1 ') 
-      .replace(/\\times/gi, 'x')              
-      .replace(/\^2/g, ' sq ft')              
-      .replace(/\^3/g, ' cubic yds')          
-      .replace(/\\/g, '')                     
-      .replace(/\$/g, '')                     
-      .trim();
-  }
-
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8">
@@ -101,19 +90,8 @@ export default function Home(props: any) {
           {errorMessage && <div className="text-red-400">{errorMessage}</div>}
           {report && (
             <div className="space-y-2">
-              {formatReportText(report).split('\n').map((line, i) => {
-                if (!line.trim()) return null;
-                if (line.includes('##') || line.match(/Overview|Takeoff|Cost|Timeline|Missing/i)) {
-                  return <h3 key={i} className="text-lg font-bold text-orange-400 mt-4 border-b border-zinc-700 pb-1">{line.replace(/#/g, '')}</h3>;
-                }
-                
-                // Surgical Fix: If the line contains a price, style it as a badge
-                const isMoney = /\d+\.\d{2}/.test(line);
-                return (
-                  <p key={i} className={`text-sm font-medium py-1 ${isMoney ? 'text-green-400 bg-green-900/20 px-2 rounded inline-block' : 'text-zinc-300'}`}>
-                    {line}
-                  </p>
-                );
+              {report.split('\n').map((line, i) => {
+                return <p key={i} className="text-sm text-zinc-300 font-medium py-1">{line}</p>;
               })}
             </div>
           )}
