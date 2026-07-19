@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// Overrides Vercel's default 10-second timeout. Allows up to 60 seconds for heavy images.
+export const maxDuration = 60; 
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
@@ -20,7 +23,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // Using 1.5-flash as it is the most stable for multi-image processing on free tiers
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const parts: any[] = [
       { text: `You are an elite construction estimator. Perform a thorough, professional quantity takeoff for a ${trade} contractor.
@@ -54,10 +58,21 @@ export async function POST(req: Request) {
     const rawText = result.response.text();
     return NextResponse.json({ success: true, data: rawText });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("API Route Error:", error);
+    
+    const errorMessage = error?.message || "Unknown server error.";
+
+    if (errorMessage.includes('429') || errorMessage.includes('quota')) {
+      return NextResponse.json(
+        { success: false, error: "Google Rate Limit Exceeded: You uploaded too much data for the free tier. Please wait 60 seconds and try uploading just 1 blueprint." }, 
+        { status: 429 }
+      );
+    }
+
+    // This forces the UI to show the EXACT error instead of a generic guess
     return NextResponse.json(
-      { success: false, error: "Failed to process blueprint analysis." }, 
+      { success: false, error: `Backend Error: ${errorMessage}` }, 
       { status: 500 }
     );
   }
