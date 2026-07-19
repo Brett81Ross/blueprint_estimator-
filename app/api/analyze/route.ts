@@ -23,8 +23,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
 
-    // Locked strictly to the 3.5 Pro model for maximum accuracy
-    const model = genAI.getGenerativeModel({ model: "gemini-3.5-pro" });
+    // Locked correctly to the active advanced model ID
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
 
     const parts: any[] = [
       { text: `You are an elite construction estimator. Perform a thorough, professional quantity takeoff for a ${trade} contractor.
@@ -72,12 +72,11 @@ export async function POST(req: Request) {
 
     if (errorMessage.includes('503')) {
       return NextResponse.json(
-        { success: false, error: "Service Unavailable: The Gemini 3.5 model is currently experiencing high demand. Please try again in a few moments." }, 
+        { success: false, error: "Service Unavailable: The Gemini model is currently experiencing high demand. Please try again in a few moments." }, 
         { status: 503 }
       );
     }
 
-    // This forces the UI to show the EXACT error instead of a generic guess
     return NextResponse.json(
       { success: false, error: `Backend Error: ${errorMessage}` }, 
       { status: 500 }
