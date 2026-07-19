@@ -75,7 +75,7 @@ export default function Home(props: any) {
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8">
-        <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Blueprint <span className="text-orange-500">AI Estimator</span></h1>
+        <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Rapid<span className="text-orange-500">Takeoff</span></h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)}>
