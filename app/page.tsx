@@ -81,7 +81,6 @@ export default function Home(props: any) {
       if (response.ok) {
         setReport(data.data) 
       } else {
-        // Renders the exact error message from the backend so you aren't blind
         setErrorMessage(data.error || "Unknown server error.")
       }
     } catch (e: any) {
@@ -91,9 +90,14 @@ export default function Home(props: any) {
     }
   }
 
+  // Helper function to clean text from raw markdown table characters like | and *
+  const cleanText = (text: string) => {
+    return text.replace(/\|/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+  }
+
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
-      <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8">
+      <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8 mb-6">
         <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Rapid<span className="text-orange-500">Takeoff</span></h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -155,41 +159,68 @@ export default function Home(props: any) {
         )}
         
         <button onClick={handleUpload} disabled={loading || files.length === 0} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase disabled:opacity-50 disabled:cursor-not-allowed">
-          {loading ? 'Processing...' : 'Generate Takeoff Report'}
+          {loading ? 'Processing Takeoff...' : 'Generate Takeoff Report'}
         </button>
       </div>
 
       {(report || errorMessage) && (
-        <div ref={reportRef} className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mt-6">
-          {errorMessage && <div className="text-red-400 font-bold p-2 bg-red-950/20 rounded">{errorMessage}</div>}
+        <div ref={reportRef} className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 shadow-2xl">
+          {errorMessage && <div className="text-red-400 font-bold p-3 bg-red-950/30 border border-red-900/50 rounded-lg">{errorMessage}</div>}
           
           {report && (
             <div className="flex flex-col gap-6">
               {report.split('\n').map((line, i) => {
-                if (line.includes('##') || line.match(/Overview|Takeoff|Cost|Timeline|Missing/i)) {
+                const trimmed = line.trim();
+                
+                // Skip empty lines or pure table divider lines (e.g. |---|---|)
+                if (!trimmed || trimmed.match(/^\|?[-:\|\s]+\|?$/)) return null;
+
+                // Section Headers (Headings with ## or numbers like 1., 2.)
+                if (trimmed.startsWith('#') || trimmed.match(/^[0-9]+\.\s+[A-Z\s]+$/)) {
                   return (
-                    <h3 key={i} className="text-md font-black text-orange-500 uppercase tracking-widest border-b border-zinc-700 pb-2 mt-4">
-                      {line.replace(/#/g, '')}
+                    <h3 key={i} className="text-base font-black text-orange-500 uppercase tracking-widest border-b border-zinc-800 pb-3 mt-6 first:mt-0">
+                      {cleanText(trimmed.replace(/#/g, ''))}
                     </h3>
                   );
                 }
-                if (line.includes(':')) {
-                  const [label, ...val] = line.split(':');
+
+                // Table rows / pipe-separated data converted into clean card rows
+                if (trimmed.includes('|')) {
+                  const parts = trimmed.split('|').map(p => cleanText(p)).filter(Boolean);
+                  if (parts.length === 0) return null;
+
+                  return (
+                    <div key={i} className="bg-zinc-950/60 border border-zinc-800/80 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-2 shadow-inner">
+                      <span className="font-bold text-white text-sm">{parts[0]}</span>
+                      <div className="flex flex-wrap gap-2 text-xs text-zinc-400">
+                        {parts.slice(1).map((val, idx) => (
+                          <span key={idx} className="bg-zinc-900 px-2.5 py-1 rounded-md border border-zinc-800 text-zinc-300">
+                            {val}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Key-value text lines (e.g., "Total Cost: $5,000")
+                if (trimmed.includes(':') && !trimmed.startsWith('http')) {
+                  const [label, ...val] = trimmed.split(':');
                   const valueText = val.join(':').trim();
                   const isMoney = /\$[0-9]/.test(valueText);
+
                   return (
-                    <div key={i} className="flex justify-between items-center py-1 border-b border-zinc-800/50">
-                      <span className="text-zinc-500 font-bold text-xs uppercase tracking-wider">{label.trim()}</span>
-                      <span className={`text-sm ${isMoney ? 'font-black text-green-400' : 'text-zinc-200 font-medium'}`}>
-                        {valueText}
+                    <div key={i} className="flex justify-between items-center py-2 border-b border-zinc-800/40 text-sm">
+                      <span className="text-zinc-400 font-medium">{cleanText(label)}</span>
+                      <span className={isMoney ? 'font-black text-green-400 text-base' : 'text-zinc-200 font-semibold'}>
+                        {cleanText(valueText)}
                       </span>
                     </div>
                   );
                 }
-                if (line.trim()) {
-                  return <p key={i} className="text-sm text-zinc-400 font-normal leading-relaxed">{line}</p>;
-                }
-                return null;
+
+                // Standard description paragraphs
+                return <p key={i} className="text-sm text-zinc-300 leading-relaxed font-normal">{cleanText(trimmed)}</p>;
               })}
             </div>
           )}
