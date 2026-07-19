@@ -31,7 +31,6 @@ export default function Home(props: any) {
     }
   }, [report])
 
-  // Cleanup object URLs to avoid memory leaks
   useEffect(() => {
     return () => {
       files.forEach(f => URL.revokeObjectURL(f.preview));
@@ -78,10 +77,15 @@ export default function Home(props: any) {
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
       const data = await response.json()
-      if (response.ok) setReport(data.data) 
-      else setErrorMessage(data.error)
+      
+      if (response.ok) {
+        setReport(data.data) 
+      } else {
+        // Renders the exact error message from the backend so you aren't blind
+        setErrorMessage(data.error || "Unknown server error.")
+      }
     } catch (e: any) {
-      setErrorMessage("System error. Check your API configuration or network.")
+      setErrorMessage("Network Timeout: Vercel killed the request because the blueprints took too long to process. Try uploading fewer images.")
     } finally {
       setLoading(false)
     }
@@ -132,7 +136,6 @@ export default function Home(props: any) {
           <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
         </div>
 
-        {/* Thumbnail Gallery */}
         {files.length > 0 && (
           <div className="flex flex-wrap gap-4 mb-6 p-4 border border-zinc-800 rounded-xl bg-zinc-950/50">
             {files.map((f, i) => (
