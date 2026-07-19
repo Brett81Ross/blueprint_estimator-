@@ -211,6 +211,11 @@ export default function Home(props: any) {
                 
                 if (!trimmed || trimmed.match(/^\|?[-:\|\s]+\|?$/)) return null;
 
+                // Skip markdown table header rows entirely
+                if (trimmed.toLowerCase().includes('material description') || trimmed.toLowerCase().includes('calculated quantity')) {
+                  return null;
+                }
+
                 // Headers
                 if (trimmed.startsWith('#') || trimmed.match(/^[0-9]+\.\s+[A-Z\s]+$/)) {
                   return (
@@ -220,7 +225,7 @@ export default function Home(props: any) {
                   );
                 }
 
-                // Table rows turned into clear, labeled breakdown cards
+                // Table rows turned into clean data cards
                 if (trimmed.includes('|')) {
                   const parts = trimmed.split('|').map(p => cleanText(p)).filter(Boolean);
                   if (parts.length === 0) return null;
@@ -232,7 +237,7 @@ export default function Home(props: any) {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                         {parts.slice(1).map((val, idx) => {
-                          const labels = ['Crew / Details', 'Rate / Measure', 'Total Metric'];
+                          const labels = ['Quantity / Measure', 'Unit', 'Waste / Extra', 'Total Order'];
                           const currentLabel = labels[idx] || `Detail ${idx + 1}`;
                           return (
                             <div key={idx} className="bg-zinc-900/90 p-2.5 rounded-lg border border-zinc-800 flex flex-col gap-1">
