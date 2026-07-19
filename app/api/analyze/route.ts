@@ -23,8 +23,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
 
-    // Locked correctly to the active advanced model ID
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro-preview" });
+    // Using the stable, public model ID for flash processing
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     const parts: any[] = [
       { text: `You are an elite construction estimator. Perform a thorough, professional quantity takeoff for a ${trade} contractor.
