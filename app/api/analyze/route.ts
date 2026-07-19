@@ -23,8 +23,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
 
-    // Using 1.5-flash as it is the most stable for multi-image processing on free tiers
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Locked strictly to the 3.5 Pro model for maximum accuracy
+    const model = genAI.getGenerativeModel({ model: "gemini-3.5-pro" });
 
     const parts: any[] = [
       { text: `You are an elite construction estimator. Perform a thorough, professional quantity takeoff for a ${trade} contractor.
@@ -65,8 +65,15 @@ export async function POST(req: Request) {
 
     if (errorMessage.includes('429') || errorMessage.includes('quota')) {
       return NextResponse.json(
-        { success: false, error: "Google Rate Limit Exceeded: You uploaded too much data for the free tier. Please wait 60 seconds and try uploading just 1 blueprint." }, 
+        { success: false, error: "Google Rate Limit Exceeded: You uploaded too much data for the free tier. Please wait 60 seconds and try uploading fewer blueprints." }, 
         { status: 429 }
+      );
+    }
+
+    if (errorMessage.includes('503')) {
+      return NextResponse.json(
+        { success: false, error: "Service Unavailable: The Gemini 3.5 model is currently experiencing high demand. Please try again in a few moments." }, 
+        { status: 503 }
       );
     }
 
