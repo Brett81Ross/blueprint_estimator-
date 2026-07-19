@@ -3,8 +3,13 @@
 import { useState, useEffect, useRef } from 'react'
 import imageCompression from 'browser-image-compression'
 
+interface FileWithPreview {
+  file: File;
+  preview: string;
+}
+
 export default function Home(props: any) {
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<FileWithPreview[]>([])
   const [trade, setTrade] = useState('General Contractor')
   const [ceilingHeight, setCeilingHeight] = useState('')
   const [projectType, setProjectType] = useState('Residential')
@@ -26,9 +31,19 @@ export default function Home(props: any) {
     }
   }, [report])
 
+  // Cleanup object URLs to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      files.forEach(f => URL.revokeObjectURL(f.preview));
+    };
+  }, [files]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files)
+      const newFiles = Array.from(e.target.files).map(file => ({
+        file,
+        preview: URL.createObjectURL(file)
+      }))
       setFiles((prevFiles) => [...prevFiles, ...newFiles])
       setReport(null) 
       setErrorMessage(null)
@@ -48,12 +63,12 @@ export default function Home(props: any) {
     const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }
 
     try {
-      for (const file of files) {
-        if (file.type.startsWith('image/')) {
-          const compressed = await imageCompression(file, options);
+      for (const f of files) {
+        if (f.file.type.startsWith('image/')) {
+          const compressed = await imageCompression(f.file, options);
           formData.append('files', compressed);
         } else {
-          formData.append('files', file); 
+          formData.append('files', f.file); 
         }
       }
       formData.append('trade', trade); formData.append('ceilingHeight', ceilingHeight);
@@ -66,7 +81,7 @@ export default function Home(props: any) {
       if (response.ok) setReport(data.data) 
       else setErrorMessage(data.error)
     } catch (e: any) {
-      setErrorMessage("System error.")
+      setErrorMessage("System error. Check your API configuration or network.")
     } finally {
       setLoading(false)
     }
@@ -112,12 +127,31 @@ export default function Home(props: any) {
           <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={(e) => setLaborRate(e.target.value)} />
         </div>
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-4 mb-4">
           <label className="flex-1 border-2 border-orange-500/50 p-6 rounded-xl text-orange-500 text-center font-bold cursor-pointer hover:bg-orange-500/10">Take Blueprint Pics<input type="file" className="hidden" onChange={handleFileChange} /></label>
           <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
         </div>
+
+        {/* Thumbnail Gallery */}
+        {files.length > 0 && (
+          <div className="flex flex-wrap gap-4 mb-6 p-4 border border-zinc-800 rounded-xl bg-zinc-950/50">
+            {files.map((f, i) => (
+              <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-zinc-700 shadow-md">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={f.preview} alt={`Upload preview ${i + 1}`} className="object-cover w-full h-full" />
+                <button 
+                  onClick={() => removeFile(i)} 
+                  className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold"
+                  title="Remove file"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         
-        <button onClick={handleUpload} disabled={loading} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase">
+        <button onClick={handleUpload} disabled={loading || files.length === 0} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? 'Processing...' : 'Generate Takeoff Report'}
         </button>
       </div>
