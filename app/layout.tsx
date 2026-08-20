@@ -1,8 +1,36 @@
+import type { Metadata } from 'next'
 import './globals.css'
 
-export const metadata = {
-  title: 'RapidTakeoff',
-  description: 'AI takeoff report generator',
+const siteName = 'Rapid Takeoff'
+const description =
+  'AI-powered construction takeoffs and estimating. Turn blueprints into material quantities, labor estimates, and professional bids in minutes.'
+
+export const metadata: Metadata = {
+  metadataBase: new URL('https://blueprint-estimator.vercel.app'),
+  title: siteName,
+  description,
+  applicationName: siteName,
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName,
+    title: siteName,
+    description,
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'Rapid Takeoff',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteName,
+    description,
+    images: ['/opengraph-image'],
+  },
 }
 
 export default function RootLayout({
@@ -26,9 +54,9 @@ export default function RootLayout({
             lineHeight: 1.65,
           }}
         >
-          <div>© 2026 RapidTakeoff™</div>
+          <div>© 2026 Rapid Takeoff™</div>
           <div>
-            Powered by <strong style={{ color: '#f97316', fontWeight: 800 }}>Cactus🌵Byte Studios™</strong> · All Rights Reserved
+            <strong>Rapid Takeoff™</strong> · <strong style={{ color: '#f97316', fontWeight: 800 }}>Cactus🌵Byte Studios™</strong> · All Rights Reserved
           </div>
         </footer>
       </body>
