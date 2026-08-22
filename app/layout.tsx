@@ -1,15 +1,26 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import SplashGate from './SplashGate'
 
 const siteName = 'Rapid Takeoff'
 const description =
   'AI-powered construction takeoffs and estimating. Turn blueprints into material quantities, labor estimates, and professional bids in minutes.'
+
+export const viewport: Viewport = {
+  themeColor: '#09090b',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://blueprint-estimator.vercel.app'),
   title: siteName,
   description,
   applicationName: siteName,
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/icon.svg',
+    apple: '/icon.svg',
+  },
   openGraph: {
     type: 'website',
     url: '/',
@@ -41,7 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <SplashGate>{children}</SplashGate>
         <footer
           style={{
             maxWidth: '768px',
