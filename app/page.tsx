@@ -1,14 +1,21 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import imageCompression from 'browser-image-compression'
 
-interface FileWithPreview {
-  file: File;
-  preview: string;
-}
+interface FileWithPreview { file: File; preview: string }
+interface ReportSection { title: string; lines: string[] }
 
-export default function Home(props: any) {
+const REVIEW_SECTIONS = [
+  'Rapid Matrix Summary',
+  'Material Takeoff + ProofTrace™',
+  'SheetLink™ Cross-Checks',
+  'Conflict Radar™',
+  'Confidence Matrix™ Review Queue',
+  'Mandatory Missing Information',
+]
+
+export default function Home() {
   const [files, setFiles] = useState<FileWithPreview[]>([])
   const [trade, setTrade] = useState('General Contractor')
   const [ceilingHeight, setCeilingHeight] = useState('')
@@ -18,262 +25,189 @@ export default function Home(props: any) {
   const [floors, setFloors] = useState('')
   const [laborRate, setLaborRate] = useState('')
   const [scale, setScale] = useState('1/4" = 1\'0"')
-  
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
   const reportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (report && reportRef.current) {
-      reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
+    if (report && reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [report])
 
-  useEffect(() => {
-    return () => {
-      files.forEach(f => URL.revokeObjectURL(f.preview));
-    };
-  }, [files]);
+  useEffect(() => () => files.forEach(f => URL.revokeObjectURL(f.preview)), [files])
+
+  const sections = useMemo<ReportSection[]>(() => {
+    if (!report) return []
+    const parsed: ReportSection[] = []
+    let current: ReportSection = { title: 'Rapid Matrix Report', lines: [] }
+    report.split('\n').forEach(raw => {
+      const line = raw.trim()
+      const heading = line.match(/^#{1,3}\s+(.+)$/)
+      if (heading) {
+        if (current.lines.length || current.title !== 'Rapid Matrix Report') parsed.push(current)
+        current = { title: heading[1].trim(), lines: [] }
+      } else if (line) current.lines.push(line)
+    })
+    if (current.lines.length || current.title !== 'Rapid Matrix Report') parsed.push(current)
+    return parsed
+  }, [report])
+
+  const confidence = useMemo(() => {
+    const text = report || ''
+    return {
+      verified: (text.match(/\bVERIFIED\b/g) || []).length,
+      probable: (text.match(/\bPROBABLE\b/g) || []).length,
+      review: (text.match(/\bNEEDS REVIEW\b/g) || []).length,
+      conflicts: sections.find(s => s.title.toLowerCase().includes('conflict radar'))?.lines.filter(l => !/^none\.?$/i.test(l)).length || 0,
+    }
+  }, [report, sections])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const newFiles = Array.from(e.target.files).map(file => ({
-        file,
-        preview: URL.createObjectURL(file)
-      }))
-      setFiles((prevFiles) => [...prevFiles, ...newFiles])
-      setReport(null) 
-      setErrorMessage(null)
-    }
+    if (!e.target.files?.length) return
+    const newFiles = Array.from(e.target.files).map(file => ({ file, preview: URL.createObjectURL(file) }))
+    setFiles(prev => [...prev, ...newFiles])
+    setReport(null)
+    setErrorMessage(null)
   }
 
-  const removeFile = (indexToRemove: number) => {
-    setFiles(files.filter((_, index) => index !== indexToRemove))
-  }
+  const removeFile = (index: number) => setFiles(files.filter((_, i) => i !== index))
 
   const handleUpload = async () => {
-    if (files.length === 0 || !ceilingHeight) return alert("At least one blueprint and Ceiling Height are required.");
-    
-    setLoading(true); setReport(null); setErrorMessage(null);
-
+    if (!files.length || !ceilingHeight) return alert('At least one blueprint and Ceiling Height are required.')
+    setLoading(true); setReport(null); setErrorMessage(null)
     const formData = new FormData()
     const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }
-
     try {
       for (const f of files) {
-        if (f.file.type.startsWith('image/')) {
-          const compressed = await imageCompression(f.file, options);
-          formData.append('files', compressed);
-        } else {
-          formData.append('files', f.file); 
-        }
+        formData.append('files', f.file.type.startsWith('image/') ? await imageCompression(f.file, options) : f.file)
       }
-      formData.append('trade', trade); formData.append('ceilingHeight', ceilingHeight);
-      formData.append('projectType', projectType); formData.append('location', location);
-      formData.append('sqft', sqft); formData.append('floors', floors); formData.append('laborRate', laborRate);
-      formData.append('scale', scale);
-
+      formData.append('trade', trade); formData.append('ceilingHeight', ceilingHeight)
+      formData.append('projectType', projectType); formData.append('location', location)
+      formData.append('sqft', sqft); formData.append('floors', floors); formData.append('laborRate', laborRate); formData.append('scale', scale)
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
       const data = await response.json()
-      
-      if (response.ok) {
-        setReport(data.data) 
-      } else {
-        setErrorMessage(data.error || "Unknown server error.")
-      }
-    } catch (e: any) {
-      setErrorMessage("Network Timeout: Vercel killed the request because the blueprints took too long to process. Try uploading fewer images.")
-    } finally {
-      setLoading(false)
-    }
+      if (response.ok) setReport(data.data)
+      else setErrorMessage(data.error || 'Unknown server error.')
+    } catch {
+      setErrorMessage('Network Timeout: the blueprint set took too long to process. Try fewer or smaller files.')
+    } finally { setLoading(false) }
   }
 
-  const cleanText = (text: string) => {
-    return text.replace(/\|/g, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
-  }
-
-  const handlePrint = () => {
-    window.print();
-  }
-
+  const cleanText = (text: string) => text.replace(/\*\*/g, '').replace(/\*/g, '').trim()
+  const handlePrint = () => window.print()
   const handleEmail = () => {
-    if (!report) return;
-    const subject = encodeURIComponent(`RapidTakeoff Estimate - ${trade} (${projectType})`);
-    const body = encodeURIComponent(`Here is the takeoff report generated by RapidTakeoff:\n\n${report}`);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    if (!report) return
+    window.location.href = `mailto:?subject=${encodeURIComponent(`Rapid Takeoff Matrix - ${trade} (${projectType})`)}&body=${encodeURIComponent(report)}`
+  }
+
+  const jumpTo = (title: string) => {
+    document.getElementById(`section-${slug(title)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
+      <div className="w-full max-w-3xl mb-4 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+        <span>Rapid Matrix Engine™</span><span>v0.2.0</span>
+      </div>
+
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8 mb-6">
-        <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase mb-6">Rapid<span className="text-orange-500">Takeoff</span></h1>
-        
+        <div className="mb-6">
+          <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase">Rapid<span className="text-orange-500">Takeoff</span>™</h1>
+          <p className="text-xs text-zinc-500 mt-2">Evidence-backed takeoffs powered by ProofTrace™, SheetLink™, Conflict Radar™ and Confidence Matrix™.</p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={trade} onChange={(e) => setTrade(e.target.value)}>
-            <option>General Contractor</option>
-            <option>Architect</option>
-            <option>Carpenter / Framer</option>
-            <option>Concrete & Masonry</option>
-            <option>Electrician</option>
-            <option>Excavator</option>
-            <option>Flooring Specialist</option>
-            <option>HVAC Technician</option>
-            <option>Insulation Contractor</option>
-            <option>Landscaper</option>
-            <option>Low Voltage / Security</option>
-            <option>Painter</option>
-            <option>Plumber</option>
-            <option>Roofing Contractor</option>
-            <option>Siding Contractor</option>
-            <option>Structural Engineer</option>
+          <select className="field" value={trade} onChange={e => setTrade(e.target.value)}>
+            {['General Contractor','Architect','Carpenter / Framer','Concrete & Masonry','Electrician','Excavator','Flooring Specialist','HVAC Technician','Insulation Contractor','Landscaper','Low Voltage / Security','Painter','Plumber','Roofing Contractor','Siding Contractor','Structural Engineer'].map(v => <option key={v}>{v}</option>)}
           </select>
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Ceiling Height *" value={ceilingHeight} onChange={(e) => setCeilingHeight(e.target.value)} />
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Project Type" value={projectType} onChange={(e) => setProjectType(e.target.value)} />
-          <select className="w-full bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" value={scale} onChange={(e) => setScale(e.target.value)}>
-            <option>1/8" = 1'0"</option>
-            <option>1/4" = 1'0"</option>
-            <option>1/2" = 1'0"</option>
-            <option>1" = 1'0"</option>
-            <option>1:50</option>
-            <option>1:100</option>
+          <input className="field" placeholder="Ceiling Height *" value={ceilingHeight} onChange={e => setCeilingHeight(e.target.value)} />
+          <input className="field" placeholder="Project Type" value={projectType} onChange={e => setProjectType(e.target.value)} />
+          <select className="field" value={scale} onChange={e => setScale(e.target.value)}>
+            {['1/8" = 1\'0"','1/4" = 1\'0"','1/2" = 1\'0"','1" = 1\'0"','1:50','1:100'].map(v => <option key={v}>{v}</option>)}
           </select>
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Total SqFt (Optional)" value={sqft} onChange={(e) => setSqft(e.target.value)} />
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Number of Floors (Optional)" value={floors} onChange={(e) => setFloors(e.target.value)} />
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Location (Optional)" value={location} onChange={(e) => setLocation(e.target.value)} />
-          <input className="bg-zinc-950 border border-zinc-700 p-3 rounded-lg text-sm text-white" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={(e) => setLaborRate(e.target.value)} />
+          <input className="field" placeholder="Total SqFt (Optional)" value={sqft} onChange={e => setSqft(e.target.value)} />
+          <input className="field" placeholder="Number of Floors (Optional)" value={floors} onChange={e => setFloors(e.target.value)} />
+          <input className="field" placeholder="Location (Optional)" value={location} onChange={e => setLocation(e.target.value)} />
+          <input className="field" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
         </div>
 
         <div className="flex gap-4 mb-4">
-          <label className="flex-1 border-2 border-orange-500/50 p-6 rounded-xl text-orange-500 text-center font-bold cursor-pointer hover:bg-orange-500/10 transition-colors">Take Blueprint Pics<input type="file" className="hidden" onChange={handleFileChange} /></label>
-          <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800 transition-colors">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
+          <label className="flex-1 border-2 border-orange-500/50 p-6 rounded-xl text-orange-500 text-center font-bold cursor-pointer hover:bg-orange-500/10">Take Blueprint Pics<input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} /></label>
+          <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
         </div>
 
-        {files.length > 0 && (
-          <div className="flex flex-wrap gap-4 mb-6 p-4 border border-zinc-800 rounded-xl bg-zinc-950/50">
-            {files.map((f, i) => (
-              <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-zinc-700 shadow-md">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={f.preview} alt={`Upload preview ${i + 1}`} className="object-cover w-full h-full" />
-                <button 
-                  onClick={() => removeFile(i)} 
-                  className="absolute top-1 right-1 bg-red-500/80 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold transition-colors"
-                  title="Remove file"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <button 
-          onClick={handleUpload} 
-          disabled={loading || files.length === 0} 
-          className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase tracking-wider transition-all duration-200 hover:bg-orange-400 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg shadow-orange-500/10"
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 text-zinc-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Analyzing Blueprints...</span>
-            </>
-          ) : (
-            'Generate Takeoff Report'
-          )}
+        {!!files.length && <div className="flex flex-wrap gap-4 mb-6 p-4 border border-zinc-800 rounded-xl bg-zinc-950/50">{files.map((f,i) => <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-zinc-700"><img src={f.preview} alt={`Upload ${i+1}`} className="object-cover w-full h-full"/><button onClick={() => removeFile(i)} className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full w-5 h-5 text-xs font-bold">×</button></div>)}</div>}
+
+        <button onClick={handleUpload} disabled={loading || !files.length} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase tracking-wider hover:bg-orange-400 disabled:opacity-50">
+          {loading ? 'Rapid Matrix Engine™ analyzing…' : 'Run Rapid Matrix Engine™'}
         </button>
       </div>
 
-      {(report || errorMessage) && (
-        <div ref={reportRef} className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 shadow-2xl">
-          {errorMessage && <div className="text-red-400 font-bold p-3 bg-red-950/30 border border-red-900/50 rounded-lg">{errorMessage}</div>}
-          
-          {report && (
-            <div className="flex flex-col gap-6">
-              {/* Action Toolbar: Print/PDF & Email */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-zinc-800">
-                <span className="text-xs font-bold uppercase tracking-widest text-orange-500">Takeoff Results Ready</span>
-                <div className="flex gap-3">
-                  <button onClick={handlePrint} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold px-4 py-2 rounded-lg border border-zinc-700 transition-colors flex items-center gap-2">
-                    <span>📄 Save PDF / Print</span>
-                  </button>
-                  <button onClick={handleEmail} className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 text-xs font-bold px-4 py-2 rounded-lg border border-orange-500/30 transition-colors flex items-center gap-2">
-                    <span>✉️ Email Report</span>
-                  </button>
-                </div>
-              </div>
-
-              {report.split('\n').map((line, i) => {
-                const trimmed = line.trim();
-                
-                if (!trimmed || trimmed.match(/^\|?[-:\|\s]+\|?$/)) return null;
-
-                // Skip markdown table header rows entirely
-                if (trimmed.toLowerCase().includes('material description') || trimmed.toLowerCase().includes('calculated quantity')) {
-                  return null;
-                }
-
-                // Headers
-                if (trimmed.startsWith('#') || trimmed.match(/^[0-9]+\.\s+[A-Z\s]+$/)) {
-                  return (
-                    <h3 key={i} className="text-base font-black text-orange-500 uppercase tracking-widest border-b border-zinc-800 pb-3 mt-6 first:mt-0">
-                      {cleanText(trimmed.replace(/#/g, ''))}
-                    </h3>
-                  );
-                }
-
-                // Table rows turned into clean data cards
-                if (trimmed.includes('|')) {
-                  const parts = trimmed.split('|').map(p => cleanText(p)).filter(Boolean);
-                  if (parts.length === 0) return null;
-
-                  return (
-                    <div key={i} className="bg-zinc-950/80 border border-zinc-800 rounded-xl p-4 flex flex-col gap-3 shadow-inner">
-                      <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
-                        <span className="font-extrabold text-white text-sm uppercase tracking-wide text-orange-400">{parts[0]}</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        {parts.slice(1).map((val, idx) => {
-                          const labels = ['Quantity / Measure', 'Unit', 'Waste / Extra', 'Total Order'];
-                          const currentLabel = labels[idx] || `Detail ${idx + 1}`;
-                          return (
-                            <div key={idx} className="bg-zinc-900/90 p-2.5 rounded-lg border border-zinc-800 flex flex-col gap-1">
-                              <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">{currentLabel}</span>
-                              <span className="text-zinc-200 font-semibold">{val}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Key-value lines
-                if (trimmed.includes(':') && !trimmed.startsWith('http')) {
-                  const [label, ...val] = trimmed.split(':');
-                  const valueText = val.join(':').trim();
-                  const isMoney = /\$[0-9]/.test(valueText);
-
-                  return (
-                    <div key={i} className="flex justify-between items-center py-2.5 px-3 bg-zinc-950/40 rounded-lg border border-zinc-800/50 text-sm">
-                      <span className="text-zinc-400 font-bold uppercase text-xs tracking-wider">{cleanText(label)}</span>
-                      <span className={isMoney ? 'font-black text-green-400 text-base' : 'text-zinc-200 font-bold'}>
-                        {cleanText(valueText)}
-                      </span>
-                    </div>
-                  );
-                }
-
-                // Standard description paragraphs
-                return <p key={i} className="text-sm text-zinc-300 leading-relaxed font-normal px-1">{cleanText(trimmed)}</p>;
-              })}
+      {(report || errorMessage) && <div ref={reportRef} className="w-full max-w-3xl">
+        {errorMessage && <div className="text-red-400 font-bold p-4 bg-red-950/30 border border-red-900/50 rounded-xl mb-4">{errorMessage}</div>}
+        {report && <>
+          <section className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 md:p-6 shadow-2xl mb-4">
+            <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
+              <div><div className="text-[10px] text-orange-500 font-black uppercase tracking-[0.2em]">Rapid Review Console™</div><h2 className="text-xl font-black mt-1">Verification dashboard</h2></div>
+              <div className="flex gap-2"><button onClick={handlePrint} className="mini-btn">PDF / Print</button><button onClick={handleEmail} className="mini-btn">Email</button></div>
             </div>
-          )}
-        </div>
-      )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+              <Metric label="Verified" value={confidence.verified} tone="green" />
+              <Metric label="Probable" value={confidence.probable} tone="amber" />
+              <Metric label="Needs Review" value={confidence.review} tone="red" />
+              <Metric label="Radar Items" value={confidence.conflicts} tone="orange" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {REVIEW_SECTIONS.filter(title => sections.some(s => normalizeTitle(s.title).includes(normalizeTitle(title)))).map(title => <button key={title} onClick={() => jumpTo(sections.find(s => normalizeTitle(s.title).includes(normalizeTitle(title)))?.title || title)} className="text-left text-[10px] font-black uppercase tracking-wider p-3 rounded-lg border border-zinc-800 bg-zinc-950 text-zinc-300 hover:border-orange-500/50">{title}</button>)}
+            </div>
+          </section>
+
+          <div className="space-y-4">
+            {sections.map((section,index) => <section id={`section-${slug(section.title)}`} key={`${section.title}-${index}`} className="scroll-mt-4 bg-zinc-900 border border-zinc-800 rounded-2xl p-5 md:p-7 shadow-xl">
+              <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2">{sectionEyebrow(section.title)}</div>
+              <h3 className="text-base md:text-lg font-black text-orange-500 uppercase tracking-widest border-b border-zinc-800 pb-3 mb-4">{cleanText(section.title)}</h3>
+              <div className="space-y-3">{section.lines.map((line,i) => renderLine(line,i,cleanText))}</div>
+            </section>)}
+          </div>
+        </>}
+      </div>}
     </main>
   )
+}
+
+function Metric({label,value,tone}:{label:string;value:number;tone:string}) {
+  const toneClass = tone === 'green' ? 'text-green-400 border-green-500/20' : tone === 'amber' ? 'text-amber-400 border-amber-500/20' : tone === 'red' ? 'text-red-400 border-red-500/20' : 'text-orange-400 border-orange-500/20'
+  return <div className={`rounded-xl border bg-zinc-950 p-4 ${toneClass}`}><div className="text-2xl font-black">{value}</div><div className="text-[9px] uppercase tracking-widest text-zinc-500 mt-1">{label}</div></div>
+}
+
+function renderLine(line:string,i:number,clean:(s:string)=>string) {
+  const trimmed = line.trim()
+  if (!trimmed || /^\|?[-:\|\s]+\|?$/.test(trimmed)) return null
+  if (trimmed.includes('|')) {
+    const parts = trimmed.split('|').map(clean).filter(Boolean)
+    if (!parts.length || parts.join(' ').toLowerCase().includes('prooftrace source confidence confidence reason')) return null
+    return <div key={i} className="bg-zinc-950/80 border border-zinc-800 rounded-xl p-4"><div className="font-extrabold text-orange-400 text-sm mb-3">{parts[0]}</div><div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{parts.slice(1).map((val,idx) => <div key={idx} className="bg-zinc-900 p-3 rounded-lg border border-zinc-800"><span className="text-xs text-zinc-200 font-semibold">{decorateConfidence(val)}</span></div>)}</div></div>
+  }
+  const upper = trimmed.toUpperCase()
+  const confidenceClass = upper.includes('NEEDS REVIEW') ? 'border-red-500/30 bg-red-950/15' : upper.includes('PROBABLE') ? 'border-amber-500/30 bg-amber-950/10' : upper.includes('VERIFIED') ? 'border-green-500/30 bg-green-950/10' : 'border-zinc-800 bg-zinc-950/40'
+  if (/^[-•]\s*/.test(trimmed) || upper.includes('NEEDS REVIEW') || upper.includes('PROBABLE') || upper.includes('VERIFIED')) return <div key={i} className={`p-3 rounded-lg border ${confidenceClass} text-sm text-zinc-300 leading-relaxed`}>{decorateConfidence(clean(trimmed.replace(/^[-•]\s*/,'')))}</div>
+  if (trimmed.includes(':')) { const [label,...rest] = trimmed.split(':'); return <div key={i} className="flex flex-col sm:flex-row sm:justify-between gap-1 p-3 rounded-lg border border-zinc-800 bg-zinc-950/40 text-sm"><span className="text-zinc-500 font-bold uppercase text-xs tracking-wider">{clean(label)}</span><span className="text-zinc-200 font-semibold">{decorateConfidence(clean(rest.join(':')))}</span></div> }
+  return <p key={i} className="text-sm text-zinc-300 leading-relaxed">{decorateConfidence(clean(trimmed))}</p>
+}
+
+function decorateConfidence(text:string) {
+  const pieces = text.split(/(NEEDS REVIEW|PROBABLE|VERIFIED)/g)
+  return <>{pieces.map((part,i) => part === 'VERIFIED' ? <strong key={i} className="text-green-400">VERIFIED</strong> : part === 'PROBABLE' ? <strong key={i} className="text-amber-400">PROBABLE</strong> : part === 'NEEDS REVIEW' ? <strong key={i} className="text-red-400">NEEDS REVIEW</strong> : part)}</>
+}
+
+function normalizeTitle(value:string) { return value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim() }
+function slug(value:string) { return normalizeTitle(value).replace(/\s+/g,'-') }
+function sectionEyebrow(title:string) {
+  const t = title.toLowerCase()
+  if (t.includes('prooftrace')) return 'ProofTrace™ evidence layer'
+  if (t.includes('sheetlink')) return 'SheetLink™ reconciliation layer'
+  if (t.includes('conflict radar')) return 'Conflict Radar™ risk layer'
+  if (t.includes('confidence')) return 'Confidence Matrix™ verification layer'
+  if (t.includes('missing')) return 'Contractor verification required'
+  return 'Rapid Matrix Engine™ output'
 }
