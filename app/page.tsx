@@ -118,7 +118,7 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <select className="field" value={trade} onChange={e => setTrade(e.target.value)}>
-            {['General Contractor','Architect','Carpenter / Framer','Concrete & Masonry','Electrician','Excavator','Flooring Specialist','HVAC Technician','Insulation Contractor','Landscaper','Low Voltage / Security','Painter','Plumber','Roofing Contractor','Siding Contractor','Structural Engineer'].map(v => <option key={v}>{v}</option>)}
+            {['General Contractor','Architect','Carpenter / Framer','Concrete & Masonry','Electrician','Excavator','Flooring Specialist','HVAC Technician','Insulation Contractor','Landscaper','Low Voltage / Security','Painter','Plumber','Roofing Contractor','Siding Contractor','Structural Engineer','Boilermaker','Carpet / Linoleum Installer','Crane Operator','Dredger','Elevator Mechanic','Fence Contractor / Fencer','Glazier','Heavy Equipment Operator','Ironworker / Steel Erector','Construction Laborer','Lineman / Power Line Technician','Millwright','Pile Driver','Pipefitter / Steamfitter','Pipelayer','Plasterer','Sheet Metal Worker','Sign Display Worker','Steel Fixer / Rebar Installer','Teamster / Construction Hauling','Welder'].map(v => <option key={v}>{v}</option>)}
           </select>
           <input className="field" placeholder="Ceiling Height *" value={ceilingHeight} onChange={e => setCeilingHeight(e.target.value)} />
           <input className="field" placeholder="Project Type" value={projectType} onChange={e => setProjectType(e.target.value)} />
