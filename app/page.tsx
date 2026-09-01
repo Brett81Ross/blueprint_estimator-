@@ -15,6 +15,8 @@ const REVIEW_SECTIONS = [
   'Mandatory Missing Information',
 ]
 
+const CACTUSBYTE_RECOVERY_URL = 'https://cactusbyte-studios.vercel.app/rapid-takeoff-recovery'
+
 export default function Home() {
   const [files, setFiles] = useState<FileWithPreview[]>([])
   const [trade, setTrade] = useState('General Contractor')
@@ -43,6 +45,22 @@ export default function Home() {
       .then(data => { if (active) setProAccess(Boolean(data?.pro)) })
       .catch(() => {})
     return () => { active = false }
+  }, [])
+
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const recovery = params.get('recovery')
+    if (!recovery) return
+    if (recovery === 'linked') setCouponMessage('Lifetime Pro is now protected by your CactusByte ID for clean-install recovery.')
+    else if (recovery === 'restored') { setProAccess(true); setCouponMessage('Lifetime Pro access restored from your CactusByte ID.') }
+    else if (recovery === 'claim-required') setCouponError('Current lifetime Pro access was not found on this device. Open Protect Pro Access from the legacy Rapid Takeoff install where Pro is active.')
+    else if (recovery === 'restore-failed') setCouponError('Pro restore could not be verified. Sign in to the CactusByte ID that owns the linked lifetime entitlement and try again.')
+    else if (recovery === 'claim-failed') setCouponError('Pro protection could not be completed. Request a fresh secure link and try again from this Pro-enabled device.')
+    else if (recovery === 'invalid-link') setCouponError('That recovery link is invalid or incomplete.')
+    params.delete('recovery')
+    const query = params.toString()
+    window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`)
   }, [])
 
   useEffect(() => {
@@ -149,9 +167,14 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${proAccess ? 'text-emerald-400' : 'text-orange-400'}`}>{proAccess ? 'Pro Access Active' : 'Have a Pro coupon?'}</div>
-              <p className="mt-1 text-sm text-zinc-300">{proAccess ? 'Lifetime Rapid Takeoff Pro access is active on this device.' : 'Redeem a single-use code for free lifetime Rapid Takeoff Pro access.'}</p>
+              <p className="mt-1 text-sm text-zinc-300">{proAccess ? 'Lifetime Rapid Takeoff Pro access is active on this device. Protect it with your CactusByte ID before any reinstall or signing migration.' : 'Redeem a single-use code for lifetime Pro, or restore Pro that was already linked to your CactusByte ID.'}</p>
             </div>
-            {!proAccess && <button type="button" onClick={() => { setCouponOpen(value => !value); setCouponError(null) }} className="min-h-12 rounded-lg border border-orange-400 bg-orange-500 px-5 font-black text-zinc-950 shadow-lg shadow-orange-950/40 hover:bg-orange-400">Free Pro Access Coupon</button>}
+            <div className="flex flex-wrap gap-2">
+              {proAccess ? <button type="button" onClick={() => window.location.assign(`${CACTUSBYTE_RECOVERY_URL}?mode=claim`)} className="min-h-12 rounded-lg border border-emerald-400/70 bg-emerald-500 px-5 font-black text-zinc-950 hover:bg-emerald-400">Protect Pro Access</button> : <>
+                <button type="button" onClick={() => { setCouponOpen(value => !value); setCouponError(null) }} className="min-h-12 rounded-lg border border-orange-400 bg-orange-500 px-5 font-black text-zinc-950 shadow-lg shadow-orange-950/40 hover:bg-orange-400">Free Pro Access Coupon</button>
+                <button type="button" onClick={() => window.location.assign(`${CACTUSBYTE_RECOVERY_URL}?mode=restore`)} className="min-h-12 rounded-lg border border-zinc-600 bg-zinc-800 px-5 font-black text-zinc-100 hover:border-orange-400/60">Restore Pro Access</button>
+              </>}
+            </div>
           </div>
           {couponOpen && !proAccess && <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <input aria-label="Rapid Takeoff coupon code" autoCapitalize="characters" autoComplete="off" spellCheck={false} value={couponCode} onChange={event => setCouponCode(event.target.value.toUpperCase())} onKeyDown={event => { if (event.key === 'Enter') void redeemCoupon() }} placeholder="RT-PRO-XXXX-XXXX-XXXX-XXXX" className="field" />
