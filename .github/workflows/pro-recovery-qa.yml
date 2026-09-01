@@ -1,0 +1,74 @@
+name: Rapid Takeoff Pro Recovery QA
+
+on:
+  push:
+    branches:
+      - android-signing-cutover-pro-recovery
+    paths:
+      - 'app/page.tsx'
+      - 'app/api/access/**'
+      - 'app/api/coupon/redeem/route.ts'
+      - 'lib/pro-access.ts'
+      - 'lib/pro-recovery.ts'
+      - 'tools/apply-pro-recovery-ui.py'
+      - 'tools/qa-pro-recovery.mjs'
+      - 'vercel.json'
+      - '.github/workflows/pro-recovery-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  pro-recovery-qa:
+    if: github.ref == 'refs/heads/android-signing-cutover-pro-recovery'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v4
+        with:
+          ref: android-signing-cutover-pro-recovery
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Apply deterministic recovery UI
+        run: python tools/apply-pro-recovery-ui.py
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pinned project dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Recovery source contract QA
+        run: node tools/qa-pro-recovery.mjs
+
+      - name: Production build
+        run: npm run build
+
+      - name: Reject deployment side effects
+        run: |
+          git diff -- vercel.json
+          if ! grep -q '"deploymentEnabled":false' vercel.json; then
+            echo 'Git auto-deployment was unexpectedly enabled.' >&2
+            exit 1
+          fi
+
+      - name: Commit deterministic generated UI if needed
+        shell: bash
+        run: |
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo 'Generated Rapid Takeoff Pro recovery UI already settled.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'recovery: apply deterministic Rapid Takeoff Pro UI'
+          git push origin HEAD:android-signing-cutover-pro-recovery
