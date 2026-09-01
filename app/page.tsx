@@ -28,7 +28,22 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [proAccess, setProAccess] = useState(false)
+  const [couponOpen, setCouponOpen] = useState(false)
+  const [couponCode, setCouponCode] = useState('')
+  const [couponBusy, setCouponBusy] = useState(false)
+  const [couponMessage, setCouponMessage] = useState<string | null>(null)
+  const [couponError, setCouponError] = useState<string | null>(null)
   const reportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let active = true
+    void fetch('/api/access', { cache: 'no-store' })
+      .then(response => response.json())
+      .then(data => { if (active) setProAccess(Boolean(data?.pro)) })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     if (report && reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -100,6 +115,20 @@ export default function Home() {
     window.location.href = `mailto:?subject=${encodeURIComponent(`Rapid Takeoff Matrix - ${trade} (${projectType})`)}&body=${encodeURIComponent(report)}`
   }
 
+  const redeemCoupon = async () => {
+    if (!couponCode.trim()) { setCouponError('Enter your Rapid Takeoff coupon code.'); return }
+    setCouponBusy(true); setCouponError(null); setCouponMessage(null)
+    try {
+      const response = await fetch('/api/coupon/redeem', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: couponCode }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(String(data?.error || 'Coupon redemption failed.'))
+      setProAccess(true); setCouponCode(''); setCouponOpen(false)
+      setCouponMessage('Lifetime Pro access activated on this device.')
+    } catch (error) {
+      setCouponError(error instanceof Error ? error.message : 'Coupon redemption failed.')
+    } finally { setCouponBusy(false) }
+  }
+
   const jumpTo = (title: string) => {
     document.getElementById(`section-${slug(title)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
@@ -107,7 +136,7 @@ export default function Home() {
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
       <div className="w-full max-w-3xl mb-4 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-        <span>Rapid Matrix Engine™</span><span>v0.2.0</span>
+        <span>Rapid Matrix Engine™</span><span>v0.3.0</span>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8 mb-6">
@@ -115,6 +144,22 @@ export default function Home() {
           <h1 className="text-xl md:text-2xl font-black tracking-widest text-white uppercase">Rapid<span className="text-orange-500">Takeoff</span>™</h1>
           <p className="text-xs text-zinc-500 mt-2">Evidence-backed takeoffs powered by ProofTrace™, SheetLink™, Conflict Radar™ and Confidence Matrix™.</p>
         </div>
+
+        <section className={`mb-6 rounded-xl border p-4 ${proAccess ? 'border-emerald-500/40 bg-emerald-950/20' : 'border-orange-500/40 bg-orange-950/20'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${proAccess ? 'text-emerald-400' : 'text-orange-400'}`}>{proAccess ? 'Pro Access Active' : 'Have a Pro coupon?'}</div>
+              <p className="mt-1 text-sm text-zinc-300">{proAccess ? 'Lifetime Rapid Takeoff Pro access is active on this device.' : 'Redeem a single-use code for free lifetime Rapid Takeoff Pro access.'}</p>
+            </div>
+            {!proAccess && <button type="button" onClick={() => { setCouponOpen(value => !value); setCouponError(null) }} className="min-h-12 rounded-lg border border-orange-400 bg-orange-500 px-5 font-black text-zinc-950 shadow-lg shadow-orange-950/40 hover:bg-orange-400">Free Pro Access Coupon</button>}
+          </div>
+          {couponOpen && !proAccess && <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <input aria-label="Rapid Takeoff coupon code" autoCapitalize="characters" autoComplete="off" spellCheck={false} value={couponCode} onChange={event => setCouponCode(event.target.value.toUpperCase())} onKeyDown={event => { if (event.key === 'Enter') void redeemCoupon() }} placeholder="RT-PRO-XXXX-XXXX-XXXX-XXXX" className="field" />
+            <button type="button" disabled={couponBusy} onClick={() => void redeemCoupon()} className="min-h-12 rounded-lg bg-orange-500 px-5 font-black text-zinc-950 hover:bg-orange-400 disabled:opacity-50">{couponBusy ? 'Activating…' : 'Activate Pro'}</button>
+          </div>}
+          {couponError && <p role="alert" className="mt-3 text-sm font-bold text-red-400">{couponError}</p>}
+          {couponMessage && <p role="status" className="mt-3 text-sm font-bold text-emerald-400">{couponMessage}</p>}
+        </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <select className="field" value={trade} onChange={e => setTrade(e.target.value)}>
