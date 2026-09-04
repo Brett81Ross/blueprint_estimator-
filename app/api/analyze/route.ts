@@ -3,7 +3,23 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const maxDuration = 60;
 
+const MAX_FILES = 12;
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+function textField(formData: FormData, key: string, fallback: string) {
+  const value = formData.get(key);
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, 300) : fallback;
+}
 
 export async function POST(req: Request) {
   try {
@@ -15,20 +31,52 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("Rapid Takeoff configuration error: GEMINI_API_KEY is missing");
+      return NextResponse.json(
+        { success: false, error: "Blueprint analysis is temporarily unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
+
     const formData = await req.formData();
-    const files = formData.getAll("files") as File[];
+    const files = formData
+      .getAll("files")
+      .filter((entry): entry is File => typeof File !== "undefined" && entry instanceof File && entry.size > 0);
 
-    const trade = formData.get("trade") || "General Contractor";
-    const ceilingHeight = formData.get("ceilingHeight") || "Not specified";
-    const projectType = formData.get("projectType") || "Not specified";
-    const scale = formData.get("scale") || "Not specified";
-    const sqft = formData.get("sqft") || "Not specified";
-    const laborRate = formData.get("laborRate") || "Not specified";
-    const location = formData.get("location") || "Not specified";
-
-    if (!files || files.length === 0) {
+    if (files.length === 0) {
       return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
     }
+
+    if (files.length > MAX_FILES) {
+      return NextResponse.json(
+        { success: false, error: `Upload up to ${MAX_FILES} blueprint files at a time.` },
+        { status: 413 }
+      );
+    }
+
+    for (const file of files) {
+      if (!ALLOWED_MIME_TYPES.has(file.type)) {
+        return NextResponse.json(
+          { success: false, error: `Unsupported file type for ${file.name || "an uploaded document"}. Use PDF, JPG, PNG, or WebP.` },
+          { status: 415 }
+        );
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        return NextResponse.json(
+          { success: false, error: `${file.name || "An uploaded document"} exceeds the 20 MB per-file limit.` },
+          { status: 413 }
+        );
+      }
+    }
+
+    const trade = textField(formData, "trade", "General Contractor");
+    const ceilingHeight = textField(formData, "ceilingHeight", "Not specified");
+    const projectType = textField(formData, "projectType", "Not specified");
+    const scale = textField(formData, "scale", "Not specified");
+    const sqft = textField(formData, "sqft", "Not specified");
+    const laborRate = textField(formData, "laborRate", "Not specified");
+    const location = textField(formData, "location", "Not specified");
 
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
@@ -143,7 +191,7 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
 
     if (errorMessage.includes("429") || errorMessage.includes("quota")) {
       return NextResponse.json(
-        { success: false, error: "Google Rate Limit Exceeded: You uploaded too much data for the free tier. Please wait 60 seconds and try uploading fewer blueprints." },
+        { success: false, error: "Google Rate Limit Exceeded: You uploaded too much data for the current analysis capacity. Please wait 60 seconds and try uploading fewer blueprints." },
         { status: 429 }
       );
     }
@@ -156,7 +204,7 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     }
 
     return NextResponse.json(
-      { success: false, error: `Backend Error: ${errorMessage}` },
+      { success: false, error: "Blueprint analysis failed unexpectedly. Please verify the files and try again." },
       { status: 500 }
     );
   }
