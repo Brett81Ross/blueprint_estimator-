@@ -7,6 +7,14 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
   try {
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.includes("multipart/form-data") && !contentType.includes("application/x-www-form-urlencoded")) {
+      return NextResponse.json(
+        { success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." },
+        { status: 400 }
+      );
+    }
+
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
 
