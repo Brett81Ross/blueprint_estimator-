@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DemoHelp />
         <footer style={{ maxWidth: '768px', margin: '18px auto 28px', padding: '18px 16px 0', borderTop: '1px solid #27272a', textAlign: 'center', color: '#a1a1aa', fontSize: '11px', lineHeight: 1.65 }}>
           <div>© 2026 Rapid Takeoff™ · v0.3.0 · Demo & Help</div>
-          <div><strong>Rapid Takeoff™</strong> · <strong style={{ color: '#f97316', fontWeight: 800 }}>Cactus🌵Byte Studios™</strong> · All Rights Reserved</div>
+          <div><strong>Rapid Takeoff™</strong> · <a href="https://cactusbyte-studios.vercel.app/" aria-label="Open Cactus Byte Studios" style={{ color: '#f97316', fontWeight: 800 }}>Cactus🌵Byte Studios™</a> · All Rights Reserved</div>
         </footer>
       </body>
     </html>
