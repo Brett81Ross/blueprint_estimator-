@@ -108,7 +108,7 @@ export default function SplashGate({ children }: { children: React.ReactNode }) 
                 textTransform: 'uppercase',
               }}
             >
-              Powered by Cactus🌵Byte Studios™
+              <a href="https://cactusbyte-studios.vercel.app/" aria-label="Open Cactus Byte Studios" style={{ color: 'inherit', textDecoration: 'none' }}>Powered by Cactus🌵Byte Studios™</a>
             </div>
           </div>
         </div>
