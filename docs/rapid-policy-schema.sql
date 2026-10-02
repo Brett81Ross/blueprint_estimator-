@@ -37,14 +37,24 @@ create table if not exists rapid_security_rejections (
   content_length bigint
 );
 
--- The implementation must reserve atomically in one transaction:
+-- The implementation uses TWO atomic transactions so concurrent requests cannot all pass
+-- a daily provider limit before any one of them is marked provider-started.
+--
+-- Stage 1: reserveAdmission, BEFORE multipart parsing:
 -- 1) SELECT runtime control FOR UPDATE and reject if disabled.
--- 2) Count ALL reservations for IP burst protection.
--- 3) Count provider-started reservations for subject/day, IP/day, and global/day usage limits.
--- 4) Reject when any approved threshold is exceeded.
--- 5) Insert one reservation before returning ALLOW.
--- 6) After upload validation and immediately before Gemini, mark provider_started_at.
--- 7) If upload validation fails, record client_rejected; it still counts for burst abuse protection
---    but not provider-backed daily usage.
+-- 2) Count ALL recent reservations for IP burst protection.
+-- 3) Reject when the approved burst threshold is exceeded.
+-- 4) Insert one attempt reservation before returning ALLOW.
+--
+-- Stage 2: reserveProviderUsage, AFTER upload validation and IMMEDIATELY BEFORE Gemini:
+-- 1) Lock runtime control again and reject if disabled.
+-- 2) Lock the reservation and verify it belongs to the same subject/IP/plan and is not started.
+-- 3) Count provider-started reservations for subject/day, IP/day, and global/day.
+-- 4) Reject when any approved daily threshold is reached.
+-- 5) Set provider_started_at in this SAME transaction before returning ALLOW.
+--
+-- If upload validation fails between stages, record client_rejected. It still counts for burst
+-- abuse protection but never consumes provider-backed daily usage.
+--
 -- Threshold values come from explicit RAPID_* environment configuration. The durable runtime
 -- table owns the kill switch only, avoiding two competing sources of truth for quota limits.
