@@ -131,3 +131,15 @@ test('upload content type requires multipart form-data with a non-empty boundary
   assert.equal(validateUploadContentType('multipart/form-data; boundary="abc123"').ok, true)
   assert.equal(validateUploadContentType('Multipart/Form-Data; charset=utf-8; boundary=abc123').ok, true)
 })
+
+test('upload guard rejects malformed file-shaped objects before signature parsing', () => {
+  const malformed = {
+    name: 'fake.pdf',
+    type: 'application/pdf',
+    size: 8,
+    arrayBuffer: async () => new ArrayBuffer(8),
+  } as unknown as File
+
+  const result = validateFiles([malformed])
+  assert.equal(result.ok, false)
+})
