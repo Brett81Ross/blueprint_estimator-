@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto'
+import { createHmac } from 'node:crypto'
 
 export type AnalysisPlan = 'free' | 'pro'
 
@@ -46,7 +46,7 @@ function requiredHashSecret() {
 }
 
 export function privacyHash(value: string) {
-  return createHash('sha256').update(requiredHashSecret()).update('\0').update(value).digest('hex')
+  return createHmac('sha256', requiredHashSecret()).update(value).digest('hex')
 }
 
 export function requestIp(headers: Headers) {
