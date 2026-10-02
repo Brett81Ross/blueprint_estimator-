@@ -4,7 +4,6 @@
 create table if not exists rapid_runtime_control (
   singleton boolean primary key default true check (singleton),
   analysis_enabled boolean not null default false,
-  global_daily_limit integer not null check (global_daily_limit > 0),
   updated_at timestamptz not null default now()
 );
 
@@ -15,7 +14,8 @@ create table if not exists rapid_analysis_reservations (
   plan text not null check (plan in ('free','pro')),
   day_utc date not null,
   created_at timestamptz not null default now(),
-  outcome text check (outcome in ('success','provider_error','server_error')),
+  provider_started_at timestamptz,
+  outcome text check (outcome in ('success','provider_error','server_error','client_rejected')),
   input_tokens bigint,
   output_tokens bigint
 );
@@ -39,7 +39,12 @@ create table if not exists rapid_security_rejections (
 
 -- The implementation must reserve atomically in one transaction:
 -- 1) SELECT runtime control FOR UPDATE and reject if disabled.
--- 2) Count subject/day, IP burst window, IP/day, and global/day.
--- 3) Reject when any approved threshold is exceeded.
--- 4) Insert one reservation before returning ALLOW.
--- Threshold values are intentionally not hard-coded here until product limits are approved.
+-- 2) Count ALL reservations for IP burst protection.
+-- 3) Count provider-started reservations for subject/day, IP/day, and global/day usage limits.
+-- 4) Reject when any approved threshold is exceeded.
+-- 5) Insert one reservation before returning ALLOW.
+-- 6) After upload validation and immediately before Gemini, mark provider_started_at.
+-- 7) If upload validation fails, record client_rejected; it still counts for burst abuse protection
+--    but not provider-backed daily usage.
+-- Threshold values come from explicit RAPID_* environment configuration. The durable runtime
+-- table owns the kill switch only, avoiding two competing sources of truth for quota limits.
