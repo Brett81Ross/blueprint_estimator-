@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { validateContentLength, validateFiles } from "../../../lib/upload-guard";
+import { validateContentLength, validateFiles, validateFileSignatures } from "../../../lib/upload-guard";
 
 export const maxDuration = 60;
 
@@ -48,6 +48,14 @@ export async function POST(req: Request) {
     if (!fileCheck.ok) {
       return NextResponse.json(
         { success: false, error: fileCheck.error },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const signatureCheck = await validateFileSignatures(files);
+    if (!signatureCheck.ok) {
+      return NextResponse.json(
+        { success: false, error: signatureCheck.error },
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
