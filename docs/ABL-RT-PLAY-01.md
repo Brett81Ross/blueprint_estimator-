@@ -49,11 +49,12 @@ Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallbac
 - Authorization/quota reservation occurs before multipart body parsing.
 - Runtime kill switch is read from durable storage as part of reservation.
 - Store failure rejects analysis; it never fails open.
-- Reservation atomically evaluates layered limits (subject/session, IP burst, IP daily, global daily).
+- Reservation atomically evaluates admission controls. IP burst counts all admitted attempts; subject/IP/global daily usage counts only reservations that reached the provider boundary.
 - Global kill switch is manual-recovery by default; in-flight provider calls are allowed to finish.
 - Raw IP addresses and file contents are not persisted in rejection logs.
 - Hashing uses a dedicated RAPID_LOG_HASH_SECRET.
 - Rejection logs retain reason, stable privacy hash, truncated user agent, and content length only at the pre-parse stage.
+- Uploads rejected before Gemini are marked client_rejected and do not consume provider-backed daily usage, while still contributing to burst-abuse protection.
 - Provider token/cost fields are recorded only when authoritative usage metadata is available; no fabricated dollar estimate.
 
 ## Identity model
@@ -66,4 +67,4 @@ Deleting cookies cannot bypass IP/global controls; changing IP cannot bypass sub
 
 ## Reference persistence design
 docs/rapid-policy-schema.sql is design-only and has NOT been applied to any database.
-The final store must provide an atomic reservation transaction so concurrent serverless requests cannot race past the limits.
+The final store must provide an atomic reservation transaction so concurrent serverless requests cannot race past the limits. Quota thresholds have one source of truth: explicit RAPID_* environment configuration; durable runtime control owns the live kill switch only.
