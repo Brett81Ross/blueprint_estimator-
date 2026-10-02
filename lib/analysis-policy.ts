@@ -24,9 +24,10 @@ export type PolicyLimits = {
 
 export interface AnalysisPolicyStore {
   reserve(input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
+  markProviderStarted(reservationId: string): Promise<void>
   recordResult(input: {
     reservationId: string
-    outcome: 'success' | 'provider_error' | 'server_error'
+    outcome: 'success' | 'provider_error' | 'server_error' | 'client_rejected'
     inputTokens?: number
     outputTokens?: number
   }): Promise<void>
@@ -65,6 +66,7 @@ export function unavailablePolicyStore(): AnalysisPolicyStore {
   }
   return {
     reserve: unavailable,
+    markProviderStarted: unavailable,
     recordResult: unavailable,
     logRejection: unavailable,
   }
