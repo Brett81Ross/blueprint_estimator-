@@ -102,7 +102,16 @@ export function validateUploadContentType(value: string | null) {
   }
   const boundaryPart = parts.slice(1).find((part) => part.toLowerCase().startsWith('boundary='))
   if (!boundaryPart) return { ok: false as const, error: 'Invalid multipart boundary.' }
-  const boundary = boundaryPart.slice(boundaryPart.indexOf('=') + 1).trim().replace(/^"|"$/g, '')
-  if (!boundary.length) return { ok: false as const, error: 'Invalid multipart boundary.' }
+  const rawBoundary = boundaryPart.slice(boundaryPart.indexOf('=') + 1).trim()
+  const quoted = rawBoundary.startsWith('"') || rawBoundary.endsWith('"')
+  if (quoted && !(rawBoundary.startsWith('"') && rawBoundary.endsWith('"'))) {
+    return { ok: false as const, error: 'Invalid multipart boundary.' }
+  }
+  const boundary = rawBoundary.startsWith('"') ? rawBoundary.slice(1, -1) : rawBoundary
+  // RFC-style multipart boundaries are intentionally kept conservative here:
+  // printable ASCII token characters only, no whitespace/control chars, max 70.
+  if (!boundary.length || boundary.length > 70 || !/^[0-9A-Za-z'()+_,\-.\/:=?]+$/.test(boundary)) {
+    return { ok: false as const, error: 'Invalid multipart boundary.' }
+  }
   return { ok: true as const }
 }
