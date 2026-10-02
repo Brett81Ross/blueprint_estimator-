@@ -30,3 +30,13 @@ export function verifySubjectToken(token: string | undefined) {
     return undefined
   }
 }
+
+
+export function subjectCookieOptions() {
+  return {
+    httpOnly: true as const,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    path: '/',
+  }
+}
