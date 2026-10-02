@@ -97,3 +97,16 @@ test('policy limits reject malformed and unsafe integer configuration', () => {
   process.env.RAPID_GLOBAL_DAILY_LIMIT = '9007199254740992'
   assert.throws(() => configuredPolicyLimits())
 })
+
+test('upload guard rejects malformed Content-Length and safely falls back on bad overrides', () => {
+  process.env.RAPID_MAX_TOTAL_BYTES = '100junk'
+  assert.equal(validateContentLength('10junk').ok, false)
+  assert.equal(validateContentLength('1.5').ok, false)
+  assert.equal(validateContentLength('9007199254740992').ok, false)
+
+  process.env.RAPID_MAX_FILES = '2junk'
+  process.env.RAPID_MAX_FILE_BYTES = '20junk'
+  process.env.RAPID_MAX_TOTAL_BYTES = '30junk'
+  const pdf = new File(['%PDF-1.7'], 'plan.pdf', { type: 'application/pdf' })
+  assert.equal(validateFiles([pdf]).ok, true)
+})
