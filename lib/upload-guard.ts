@@ -100,9 +100,9 @@ export function validateUploadContentType(value: string | null) {
   if (parts[0].toLowerCase() !== 'multipart/form-data') {
     return { ok: false as const, error: 'Invalid upload request.' }
   }
-  const boundary = parts.slice(1).find((part) => part.toLowerCase().startsWith('boundary='))
-  if (!boundary || boundary.slice(boundary.indexOf('=') + 1).trim().replace(/^"|"$/g, '').length) {
-    return { ok: false as const, error: 'Invalid multipart boundary.' }
-  }
+  const boundaryPart = parts.slice(1).find((part) => part.toLowerCase().startsWith('boundary='))
+  if (!boundaryPart) return { ok: false as const, error: 'Invalid multipart boundary.' }
+  const boundary = boundaryPart.slice(boundaryPart.indexOf('=') + 1).trim().replace(/^"|"$/g, '')
+  if (!boundary.length) return { ok: false as const, error: 'Invalid multipart boundary.' }
   return { ok: true as const }
 }
