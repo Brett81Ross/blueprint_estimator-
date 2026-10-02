@@ -6,14 +6,24 @@ export type AnalysisIdentity = {
   plan: AnalysisPlan
   subjectHash: string
   ipHash: string
+  now: Date
 }
 
 export type AnalysisDecision =
   | { allowed: true; reservationId: string }
   | { allowed: false; status: 429 | 503; reason: string }
 
+export type PolicyLimits = {
+  freeDaily: number
+  proDaily: number
+  ipBurst: number
+  ipBurstWindowSeconds: number
+  ipDaily: number
+  globalDaily: number
+}
+
 export interface AnalysisPolicyStore {
-  reserve(input: AnalysisIdentity): Promise<AnalysisDecision>
+  reserve(input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
   recordResult(input: {
     reservationId: string
     outcome: 'success' | 'provider_error' | 'server_error'
@@ -57,5 +67,22 @@ export function unavailablePolicyStore(): AnalysisPolicyStore {
     reserve: unavailable,
     recordResult: unavailable,
     logRejection: unavailable,
+  }
+}
+
+export function configuredPolicyLimits(): PolicyLimits {
+  const required = (name: string) => {
+    const value = Number.parseInt(process.env[name] || '', 10)
+    if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} is not configured`)
+    return value
+  }
+
+  return {
+    freeDaily: required('RAPID_FREE_DAILY_LIMIT'),
+    proDaily: required('RAPID_PRO_DAILY_LIMIT'),
+    ipBurst: required('RAPID_IP_BURST_LIMIT'),
+    ipBurstWindowSeconds: required('RAPID_IP_BURST_WINDOW_SECONDS'),
+    ipDaily: required('RAPID_IP_DAILY_LIMIT'),
+    globalDaily: required('RAPID_GLOBAL_DAILY_LIMIT'),
   }
 }
