@@ -26,7 +26,7 @@ The dedicated Google AI key identified as blueprint_estimator_key was revoked by
 
 ## Deliberately not claimed complete
 - RAPID_ANALYSIS_ENABLED is NOT the final kill switch because changing an environment variable may require deployment/restart behavior. The release requires a durable runtime-readable flag.
-- Durable quota/rate-limit storage is not implemented yet.
+- Durable quota/rate-limit storage is not implemented yet. A fail-closed AnalysisPolicyStore interface now defines the runtime boundary; no existing CactusByte database is assumed or modified.
 - No arbitrary Free/Pro quotas are approved yet.
 - No replacement Gemini key has been created or installed.
 - No production environment variables have been changed.
@@ -44,3 +44,14 @@ Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallbac
 - Build/lint pass.
 - Rollback path verified.
 - Explicit owner approval before production deployment.
+
+## Durable policy invariants
+- Authorization/quota reservation occurs before multipart body parsing.
+- Runtime kill switch is read from durable storage as part of reservation.
+- Store failure rejects analysis; it never fails open.
+- Reservation atomically evaluates layered limits (subject/session, IP burst, IP daily, global daily).
+- Global kill switch is manual-recovery by default; in-flight provider calls are allowed to finish.
+- Raw IP addresses and file contents are not persisted in rejection logs.
+- Hashing uses a dedicated RAPID_LOG_HASH_SECRET.
+- Rejection logs retain reason, stable privacy hash, truncated user agent, and content length only at the pre-parse stage.
+- Provider token/cost fields are recorded only when authoritative usage metadata is available; no fabricated dollar estimate.
