@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { validateContentLength, validateFiles } from "../../../lib/upload-guard";
 
 export const maxDuration = 60;
 
@@ -7,6 +8,23 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
   try {
+    // Fail closed before multipart parsing. This is a temporary deployment gate;
+    // the durable Batch 0 kill switch/quota ledger will replace it before release.
+    if (process.env.RAPID_ANALYSIS_ENABLED !== "true") {
+      return NextResponse.json(
+        { success: false, error: "Analysis is temporarily unavailable." },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const lengthCheck = validateContentLength(req.headers.get("content-length"));
+    if (!lengthCheck.ok) {
+      return NextResponse.json(
+        { success: false, error: lengthCheck.error },
+        { status: 413, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const contentType = req.headers.get("content-type") || "";
     if (!contentType.includes("multipart/form-data") && !contentType.includes("application/x-www-form-urlencoded")) {
       return NextResponse.json(
@@ -26,8 +44,19 @@ export async function POST(req: Request) {
     const laborRate = formData.get("laborRate") || "Not specified";
     const location = formData.get("location") || "Not specified";
 
-    if (!files || files.length === 0) {
-      return NextResponse.json({ success: false, error: "No blueprints uploaded." }, { status: 400 });
+    const fileCheck = validateFiles(files);
+    if (!fileCheck.ok) {
+      return NextResponse.json(
+        { success: false, error: fileCheck.error },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: "Analysis is temporarily unavailable." },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
@@ -156,8 +185,8 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     }
 
     return NextResponse.json(
-      { success: false, error: `Backend Error: ${errorMessage}` },
-      { status: 500 }
+      { success: false, error: "Analysis failed. Please try again later." },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
