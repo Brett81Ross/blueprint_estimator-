@@ -179,3 +179,12 @@ test('subject verifier rejects malformed and non-v4 identifiers', () => {
   assert.equal(verifySubjectToken('00000000-0000-0000-0000-000000000000.signature'), undefined)
   assert.equal(verifySubjectToken('550e8400-e29b-11d4-a716-446655440000.signature'), undefined)
 })
+
+test('multipart boundary rejects whitespace, controls, broken quotes, and excessive length', () => {
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=abc def').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=abc\\tdef').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary="abc123').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=abc123"').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=' + 'a'.repeat(71)).ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=' + 'a'.repeat(70)).ok, true)
+})
