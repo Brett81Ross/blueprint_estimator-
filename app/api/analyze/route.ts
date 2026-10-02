@@ -175,21 +175,24 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     });
 
   } catch (error: any) {
-    console.error("API Route Error:", error);
+    console.error("Rapid Takeoff analysis request failed", {
+      name: error?.name || "Error",
+      status: error?.status || error?.statusCode,
+    });
 
-    const errorMessage = error?.message || "Unknown server error.";
+    const errorMessage = error?.message || "";
 
     if (errorMessage.includes("429") || errorMessage.includes("quota")) {
       return NextResponse.json(
-        { success: false, error: "Google Rate Limit Exceeded: You uploaded too much data for the free tier. Please wait 60 seconds and try uploading fewer blueprints." },
-        { status: 429 }
+        { success: false, error: "Analysis capacity is temporarily limited. Please wait and try again." },
+        { status: 429, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     if (errorMessage.includes("503")) {
       return NextResponse.json(
-        { success: false, error: "Service Unavailable: The Gemini model is currently experiencing high demand. Please try again in a few moments." },
-        { status: 503 }
+        { success: false, error: "Analysis is temporarily unavailable. Please try again shortly." },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
       );
     }
 
