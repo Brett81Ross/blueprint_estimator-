@@ -43,7 +43,9 @@ export function validateFiles(files: File[]) {
 
   let totalBytes = 0
   for (const file of files) {
-    if (!(file instanceof File)) return { ok: false as const, error: 'Invalid upload payload.' }
+    if (!file || typeof file.name !== 'string' || typeof file.type !== 'string' || typeof file.size !== 'number' || typeof file.arrayBuffer !== 'function') {
+      return { ok: false as const, error: 'Invalid upload payload.' }
+    }
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
       return { ok: false as const, error: 'Only PDF, JPEG, PNG, and WebP blueprint files are accepted.' }
     }
