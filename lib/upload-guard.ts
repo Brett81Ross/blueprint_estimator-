@@ -45,7 +45,7 @@ export function validateFiles(files: File[]) {
 
   let totalBytes = 0
   for (const file of files) {
-    if (!file || typeof file.name !== 'string' || typeof file.type !== 'string' || typeof file.size !== 'number' || typeof file.arrayBuffer !== 'function') {
+    if (!file || typeof file.name !== 'string' || typeof file.type !== 'string' || typeof file.size !== 'number' || typeof file.arrayBuffer !== 'function' || typeof file.slice !== 'function') {
       return { ok: false as const, error: 'Invalid upload payload.' }
     }
     if (!ALLOWED_MIME_TYPES.has(file.type)) {
