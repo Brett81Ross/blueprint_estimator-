@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createSubjectToken, verifySubjectToken } from '../lib/analysis-identity'
-import { configuredPolicyLimits, privacyHash } from '../lib/analysis-policy'
+import { configuredPolicyLimits, unavailablePolicyStore, privacyHash } from '../lib/analysis-policy'
 import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType } from '../lib/upload-guard'
 
 test('signed subject token verifies and tampering fails', () => {
@@ -142,4 +142,25 @@ test('upload guard rejects malformed file-shaped objects before signature parsin
 
   const result = validateFiles([malformed])
   assert.equal(result.ok, false)
+})
+
+test('durable policy boundary fails closed at both reservation stages', async () => {
+  const store = unavailablePolicyStore()
+  const identity = {
+    plan: 'free' as const,
+    subjectHash: 'subject',
+    ipHash: 'ip',
+    now: new Date('2026-10-02T00:00:00Z'),
+  }
+  const limits = {
+    freeDaily: 2,
+    proDaily: 20,
+    ipBurst: 3,
+    ipBurstWindowSeconds: 60,
+    ipDaily: 10,
+    globalDaily: 100,
+  }
+
+  await assert.rejects(() => store.reserveAdmission(identity, limits))
+  await assert.rejects(() => store.reserveProviderUsage('reservation', identity, limits))
 })
