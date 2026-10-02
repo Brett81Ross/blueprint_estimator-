@@ -23,8 +23,17 @@ export type PolicyLimits = {
 }
 
 export interface AnalysisPolicyStore {
-  reserve(input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
-  markProviderStarted(reservationId: string): Promise<void>
+  /**
+   * Stage 1: atomically re-check the runtime kill switch, enforce burst abuse
+   * controls, and insert an attempt reservation before multipart parsing.
+   */
+  reserveAdmission(input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
+  /**
+   * Stage 2: immediately before Gemini, atomically re-check the kill switch,
+   * enforce subject/IP/global provider-backed daily limits, and mark the
+   * reservation provider-started in the same transaction.
+   */
+  reserveProviderUsage(reservationId: string, input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
   recordResult(input: {
     reservationId: string
     outcome: 'success' | 'provider_error' | 'server_error' | 'client_rejected'
@@ -65,8 +74,8 @@ export function unavailablePolicyStore(): AnalysisPolicyStore {
     throw new Error('Rapid Takeoff durable policy store is not configured')
   }
   return {
-    reserve: unavailable,
-    markProviderStarted: unavailable,
+    reserveAdmission: unavailable,
+    reserveProviderUsage: unavailable,
     recordResult: unavailable,
     logRejection: unavailable,
   }
