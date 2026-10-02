@@ -9,9 +9,15 @@ export type AnalysisIdentity = {
   now: Date
 }
 
-export type AnalysisDecision =
+export type AnalysisRejection = { allowed: false; status: 429 | 503; reason: string }
+
+export type AdmissionDecision =
   | { allowed: true; reservationId: string }
-  | { allowed: false; status: 429 | 503; reason: string }
+  | AnalysisRejection
+
+export type ProviderUsageDecision =
+  | { allowed: true }
+  | AnalysisRejection
 
 export type PolicyLimits = {
   freeDaily: number
@@ -27,13 +33,13 @@ export interface AnalysisPolicyStore {
    * Stage 1: atomically re-check the runtime kill switch, enforce burst abuse
    * controls, and insert an attempt reservation before multipart parsing.
    */
-  reserveAdmission(input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
+  reserveAdmission(input: AnalysisIdentity, limits: PolicyLimits): Promise<AdmissionDecision>
   /**
    * Stage 2: immediately before Gemini, atomically re-check the kill switch,
    * enforce subject/IP/global provider-backed daily limits, and mark the
    * reservation provider-started in the same transaction.
    */
-  reserveProviderUsage(reservationId: string, input: AnalysisIdentity, limits: PolicyLimits): Promise<AnalysisDecision>
+  reserveProviderUsage(reservationId: string, input: AnalysisIdentity, limits: PolicyLimits): Promise<ProviderUsageDecision>
   recordResult(input: {
     reservationId: string
     outcome: 'success' | 'provider_error' | 'server_error' | 'client_rejected'
