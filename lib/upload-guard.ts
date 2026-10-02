@@ -92,3 +92,17 @@ export async function validateFileSignatures(files: File[]) {
 
   return { ok: true as const }
 }
+
+
+export function validateUploadContentType(value: string | null) {
+  if (!value) return { ok: false as const, error: 'Invalid upload request.' }
+  const parts = value.split(';').map((part) => part.trim())
+  if (parts[0].toLowerCase() !== 'multipart/form-data') {
+    return { ok: false as const, error: 'Invalid upload request.' }
+  }
+  const boundary = parts.slice(1).find((part) => part.toLowerCase().startsWith('boundary='))
+  if (!boundary || boundary.slice(boundary.indexOf('=') + 1).trim().replace(/^"|"$/g, '').length) {
+    return { ok: false as const, error: 'Invalid multipart boundary.' }
+  }
+  return { ok: true as const }
+}
