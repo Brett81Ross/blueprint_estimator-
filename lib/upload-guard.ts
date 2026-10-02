@@ -1,6 +1,6 @@
 export const DEFAULT_MAX_FILES = 8
-export const DEFAULT_MAX_FILE_BYTES = 12 * 1024 * 1024
-export const DEFAULT_MAX_TOTAL_BYTES = 32 * 1024 * 1024
+export const DEFAULT_MAX_FILE_BYTES = 4 * 1024 * 1024
+export const DEFAULT_MAX_TOTAL_BYTES = 4 * 1024 * 1024
 
 const ALLOWED_MIME_TYPES = new Set([
   'application/pdf',
@@ -32,7 +32,7 @@ export function validateContentLength(value: string | null) {
   if (!Number.isSafeInteger(bytes) || bytes < 0) return { ok: false as const, error: 'Invalid Content-Length.' }
   const { maxTotalBytes } = uploadLimits()
   // Multipart framing adds overhead, so allow a small envelope before parsing.
-  if (bytes > maxTotalBytes + 1024 * 1024) {
+  if (bytes > maxTotalBytes + 256 * 1024) {
     return { ok: false as const, error: 'Upload is too large.' }
   }
   return { ok: true as const }
