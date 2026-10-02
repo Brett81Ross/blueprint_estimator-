@@ -4,7 +4,7 @@ export const PRO_COOKIE = 'rapid_takeoff_pro'
 const SCOPE = 'rapid-takeoff-pro-lifetime'
 
 function secret() {
-  const value = process.env.RAPID_ACCESS_SECRET || process.env.GEMINI_API_KEY
+  const value = process.env.RAPID_ACCESS_SECRET
   if (!value) throw new Error('RAPID_ACCESS_SECRET is not configured')
   return value
 }
