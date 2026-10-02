@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createSubjectToken, verifySubjectToken, subjectCookieOptions } from '../lib/analysis-identity'
 import { configuredPolicyLimits, unavailablePolicyStore, privacyHash } from '../lib/analysis-policy'
-import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType } from '../lib/upload-guard'
+import { DEFAULT_MAX_FILE_BYTES, DEFAULT_MAX_TOTAL_BYTES, validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType } from '../lib/upload-guard'
 
 test('signed subject token verifies and tampering fails', () => {
   process.env.RAPID_SUBJECT_SECRET = 'test-subject-secret'
@@ -182,9 +182,17 @@ test('subject verifier rejects malformed and non-v4 identifiers', () => {
 
 test('multipart boundary rejects whitespace, controls, broken quotes, and excessive length', () => {
   assert.equal(validateUploadContentType('multipart/form-data; boundary=abc def').ok, false)
-  assert.equal(validateUploadContentType('multipart/form-data; boundary=abc\\tdef').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=abc\tdef').ok, false)
   assert.equal(validateUploadContentType('multipart/form-data; boundary="abc123').ok, false)
   assert.equal(validateUploadContentType('multipart/form-data; boundary=abc123"').ok, false)
   assert.equal(validateUploadContentType('multipart/form-data; boundary=' + 'a'.repeat(71)).ok, false)
   assert.equal(validateUploadContentType('multipart/form-data; boundary=' + 'a'.repeat(70)).ok, true)
+})
+
+test('default upload envelope stays below Vercel function payload ceiling', () => {
+  assert.equal(DEFAULT_MAX_FILE_BYTES, 4 * 1024 * 1024)
+  assert.equal(DEFAULT_MAX_TOTAL_BYTES, 4 * 1024 * 1024)
+  delete process.env.RAPID_MAX_TOTAL_BYTES
+  assert.equal(validateContentLength(String(4 * 1024 * 1024 + 256 * 1024)).ok, true)
+  assert.equal(validateContentLength(String(4 * 1024 * 1024 + 256 * 1024 + 1)).ok, false)
 })
