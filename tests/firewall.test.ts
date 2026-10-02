@@ -74,3 +74,26 @@ test('upload guard accepts bounded blueprint files', () => {
   const png = new File(['png'], 'plan.png', { type: 'image/png' })
   assert.equal(validateFiles([pdf, png]).ok, true)
 })
+
+test('policy limits reject malformed and unsafe integer configuration', () => {
+  const valid = {
+    RAPID_FREE_DAILY_LIMIT: '2',
+    RAPID_PRO_DAILY_LIMIT: '20',
+    RAPID_IP_BURST_LIMIT: '3',
+    RAPID_IP_BURST_WINDOW_SECONDS: '60',
+    RAPID_IP_DAILY_LIMIT: '10',
+    RAPID_GLOBAL_DAILY_LIMIT: '100',
+  }
+  Object.assign(process.env, valid)
+
+  process.env.RAPID_FREE_DAILY_LIMIT = '10junk'
+  assert.throws(() => configuredPolicyLimits())
+
+  Object.assign(process.env, valid)
+  process.env.RAPID_IP_DAILY_LIMIT = '1.5'
+  assert.throws(() => configuredPolicyLimits())
+
+  Object.assign(process.env, valid)
+  process.env.RAPID_GLOBAL_DAILY_LIMIT = '9007199254740992'
+  assert.throws(() => configuredPolicyLimits())
+})
