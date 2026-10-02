@@ -173,3 +173,9 @@ test('anonymous subject cookie is hardened and never script-readable', () => {
   assert.equal(options.secure, process.env.NODE_ENV === 'production')
   assert.equal('maxAge' in options, false)
 })
+
+test('subject verifier rejects malformed and non-v4 identifiers', () => {
+  assert.equal(verifySubjectToken('not-a-uuid.signature'), undefined)
+  assert.equal(verifySubjectToken('00000000-0000-0000-0000-000000000000.signature'), undefined)
+  assert.equal(verifySubjectToken('550e8400-e29b-11d4-a716-446655440000.signature'), undefined)
+})
