@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     }
 
     const contentType = req.headers.get("content-type") || "";
-    if (!contentType.includes("multipart/form-data") && !contentType.includes("application/x-www-form-urlencoded")) {
+    if (!contentType.toLowerCase().startsWith("multipart/form-data;")) {
       return NextResponse.json(
         { success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." },
         { status: 400 }
