@@ -12,8 +12,9 @@ const ALLOWED_MIME_TYPES = new Set([
 function positiveInt(name: string, fallback: number) {
   const raw = process.env[name]
   if (!raw) return fallback
-  const parsed = Number.parseInt(raw, 10)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+  if (!/^[1-9]\d*$/.test(raw)) return fallback
+  const parsed = Number(raw)
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
 export function uploadLimits() {
@@ -26,8 +27,9 @@ export function uploadLimits() {
 
 export function validateContentLength(value: string | null) {
   if (!value) return { ok: true as const }
-  const bytes = Number.parseInt(value, 10)
-  if (!Number.isFinite(bytes) || bytes < 0) return { ok: false as const, error: 'Invalid Content-Length.' }
+  if (!/^\d+$/.test(value)) return { ok: false as const, error: 'Invalid Content-Length.' }
+  const bytes = Number(value)
+  if (!Number.isSafeInteger(bytes) || bytes < 0) return { ok: false as const, error: 'Invalid Content-Length.' }
   const { maxTotalBytes } = uploadLimits()
   // Multipart framing adds overhead, so allow a small envelope before parsing.
   if (bytes > maxTotalBytes + 1024 * 1024) {
