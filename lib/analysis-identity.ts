@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 
 export const SUBJECT_COOKIE = 'rapid_takeoff_subject'
+const SUBJECT_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 function subjectSecret() {
   const value = process.env.RAPID_SUBJECT_SECRET
@@ -20,7 +21,7 @@ export function createSubjectToken() {
 export function verifySubjectToken(token: string | undefined) {
   if (!token) return undefined
   const [id, supplied, extra] = token.split('.')
-  if (!id || !supplied || extra) return undefined
+  if (!id || !supplied || extra || !SUBJECT_ID_RE.test(id)) return undefined
   try {
     const expected = Buffer.from(sign(id))
     const actual = Buffer.from(supplied)
