@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createSubjectToken, verifySubjectToken } from '../lib/analysis-identity'
 import { configuredPolicyLimits, privacyHash } from '../lib/analysis-policy'
-import { validateContentLength, validateFiles, validateFileSignatures } from '../lib/upload-guard'
+import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType } from '../lib/upload-guard'
 
 test('signed subject token verifies and tampering fails', () => {
   process.env.RAPID_SUBJECT_SECRET = 'test-subject-secret'
@@ -121,4 +121,13 @@ test('file signatures reject MIME spoofing and accept supported headers', async 
   const webp = new File([new Uint8Array([0x52,0x49,0x46,0x46,0,0,0,0,0x57,0x45,0x42,0x50])], 'plan.webp', { type: 'image/webp' })
 
   assert.equal((await validateFileSignatures([pdf, jpg, png, webp])).ok, true)
+})
+
+test('upload content type requires multipart form-data with a non-empty boundary', () => {
+  assert.equal(validateUploadContentType(null).ok, false)
+  assert.equal(validateUploadContentType('application/x-www-form-urlencoded').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary=').ok, false)
+  assert.equal(validateUploadContentType('multipart/form-data; boundary="abc123"').ok, true)
+  assert.equal(validateUploadContentType('Multipart/Form-Data; charset=utf-8; boundary=abc123').ok, true)
 })
