@@ -74,8 +74,10 @@ export function unavailablePolicyStore(): AnalysisPolicyStore {
 
 export function configuredPolicyLimits(): PolicyLimits {
   const required = (name: string) => {
-    const value = Number.parseInt(process.env[name] || '', 10)
-    if (!Number.isFinite(value) || value <= 0) throw new Error(`${name} is not configured`)
+    const raw = process.env[name] || ''
+    if (!/^[1-9]\d*$/.test(raw)) throw new Error(`${name} is not configured`)
+    const value = Number(raw)
+    if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`${name} is not configured`)
     return value
   }
 
