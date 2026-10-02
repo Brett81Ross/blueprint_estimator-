@@ -18,10 +18,12 @@ The dedicated Google AI key identified as blueprint_estimator_key was revoked by
 
 ## Implemented in branch
 - Bounded file count, per-file bytes, total bytes, and MIME allow-list.
+- Default upload envelope is 4 MiB total/per-file plus at most 256 KiB multipart framing, intentionally below Vercel's documented 4.5 MB Function request payload ceiling. Larger-document architecture must use a different upload path rather than raising this route above the host limit.
 - Content-Length rejection before multipart parsing when the header is present.
 - Temporary fail-closed RAPID_ANALYSIS_ENABLED gate before multipart parsing.
 - Missing Gemini key fails closed.
-- Backend exception details are no longer returned to clients.
+- Backend exception details are no longer returned to clients or dumped wholesale into server logs.
+- Provider 429/503 responses are generic and non-cacheable; they do not make unapproved Free-tier/product-policy claims.
 - RAPID_ACCESS_SECRET no longer falls back to GEMINI_API_KEY.
 
 ## Deliberately not claimed complete
@@ -49,7 +51,7 @@ Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallbac
 - Authorization/quota reservation occurs before multipart body parsing.
 - Runtime kill switch is read from durable storage as part of reservation.
 - Store failure rejects analysis; it never fails open.
-- Reservation atomically evaluates admission controls. IP burst counts all admitted attempts; subject/IP/global daily usage counts only reservations that reached the provider boundary.
+- Two atomic reservations are required: Stage 1 admission before multipart parsing (kill switch + IP burst + attempt insert), then Stage 2 provider usage immediately before Gemini (kill switch re-check + subject/IP/global daily limits + provider_started mark in the same transaction). This prevents concurrent requests racing past daily limits.
 - Global kill switch is manual-recovery by default; in-flight provider calls are allowed to finish.
 - Raw IP addresses and file contents are not persisted in rejection logs.
 - Hashing uses a dedicated RAPID_LOG_HASH_SECRET.
@@ -67,4 +69,4 @@ Deleting cookies cannot bypass IP/global controls; changing IP cannot bypass sub
 
 ## Reference persistence design
 docs/rapid-policy-schema.sql is design-only and has NOT been applied to any database.
-The final store must provide an atomic reservation transaction so concurrent serverless requests cannot race past the limits. Quota thresholds have one source of truth: explicit RAPID_* environment configuration; durable runtime control owns the live kill switch only.
+The final store must provide the documented two-stage atomic reservation flow so concurrent serverless requests cannot race past the limits. Quota thresholds have one source of truth: explicit RAPID_* environment configuration; durable runtime control owns the live kill switch only.
