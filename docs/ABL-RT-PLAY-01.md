@@ -55,3 +55,15 @@ Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallbac
 - Hashing uses a dedicated RAPID_LOG_HASH_SECRET.
 - Rejection logs retain reason, stable privacy hash, truncated user agent, and content length only at the pre-parse stage.
 - Provider token/cost fields are recorded only when authoritative usage metadata is available; no fabricated dollar estimate.
+
+## Identity model
+Rapid Takeoff currently has no account login. Batch 0 therefore does not pretend Free traffic has authenticated user identity.
+- Free: signed anonymous subject cookie, hashed before durable logging/counting.
+- Pro: existing verified Pro entitlement plus the same signed subject identity.
+- IP: separately privacy-hashed and used only as an abuse-control dimension.
+- Global: independent daily ceiling across all subjects/IPs.
+Deleting cookies cannot bypass IP/global controls; changing IP cannot bypass subject/global controls.
+
+## Reference persistence design
+docs/rapid-policy-schema.sql is design-only and has NOT been applied to any database.
+The final store must provide an atomic reservation transaction so concurrent serverless requests cannot race past the limits.
