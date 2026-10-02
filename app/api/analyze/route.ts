@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { validateContentLength, validateFiles, validateFileSignatures } from "../../../lib/upload-guard";
 
+export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(req: Request) {
   try {
@@ -60,13 +59,15 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
       return NextResponse.json(
         { success: false, error: "Analysis is temporarily unavailable." },
         { status: 503, headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
 
     const parts: any[] = [
