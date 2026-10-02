@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { validateContentLength, validateFiles, validateFileSignatures } from "../../../lib/upload-guard";
+import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType } from "../../../lib/upload-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -24,11 +24,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const contentType = req.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().startsWith("multipart/form-data;")) {
+    const contentTypeCheck = validateUploadContentType(req.headers.get("content-type"));
+    if (!contentTypeCheck.ok) {
       return NextResponse.json(
         { success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." },
-        { status: 400 }
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
