@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createSubjectToken, verifySubjectToken } from '../lib/analysis-identity'
 import { configuredPolicyLimits, privacyHash } from '../lib/analysis-policy'
-import { validateContentLength, validateFiles } from '../lib/upload-guard'
+import { validateContentLength, validateFiles, validateFileSignatures } from '../lib/upload-guard'
 
 test('signed subject token verifies and tampering fails', () => {
   process.env.RAPID_SUBJECT_SECRET = 'test-subject-secret'
@@ -109,4 +109,16 @@ test('upload guard rejects malformed Content-Length and safely falls back on bad
   process.env.RAPID_MAX_TOTAL_BYTES = '30junk'
   const pdf = new File(['%PDF-1.7'], 'plan.pdf', { type: 'application/pdf' })
   assert.equal(validateFiles([pdf]).ok, true)
+})
+
+test('file signatures reject MIME spoofing and accept supported headers', async () => {
+  const fakePdf = new File(['not a pdf'], 'plan.pdf', { type: 'application/pdf' })
+  assert.equal((await validateFileSignatures([fakePdf])).ok, false)
+
+  const pdf = new File([new Uint8Array([0x25,0x50,0x44,0x46,0x2d,0x31,0x2e,0x37])], 'plan.pdf', { type: 'application/pdf' })
+  const jpg = new File([new Uint8Array([0xff,0xd8,0xff,0xe0])], 'plan.jpg', { type: 'image/jpeg' })
+  const png = new File([new Uint8Array([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a])], 'plan.png', { type: 'image/png' })
+  const webp = new File([new Uint8Array([0x52,0x49,0x46,0x46,0,0,0,0,0x57,0x45,0x42,0x50])], 'plan.webp', { type: 'image/webp' })
+
+  assert.equal((await validateFileSignatures([pdf, jpg, png, webp])).ok, true)
 })
