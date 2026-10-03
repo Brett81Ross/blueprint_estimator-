@@ -128,3 +128,14 @@ export function safeDocumentLabel(name: string, index: number) {
     .slice(0, 120)
   return cleaned || fallback
 }
+
+
+export function safePromptField(value: FormDataEntryValue | null, fallback: string, maxLength = 160) {
+  if (typeof value !== 'string') return fallback
+  const cleaned = value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength)
+  return cleaned || fallback
+}
