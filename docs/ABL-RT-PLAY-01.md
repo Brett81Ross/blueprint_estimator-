@@ -59,6 +59,7 @@ Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallbac
 - Rejection logs retain reason, stable privacy hash, truncated user agent, and content length only at the pre-parse stage.
 - Uploads rejected during parsing/validation are marked client_rejected and do not consume provider-backed daily usage, while still contributing to burst-abuse protection.
 - A Stage 2 kill-switch/quota denial finalizes its existing attempt reservation as policy_rejected atomically; it must not leave an ambiguous pending reservation.
+- The reference durable schema bootstraps exactly one runtime-control row with analysis disabled, so a new store starts fail-closed without manual seed ambiguity.
 - Provider token/cost fields are recorded only when authoritative usage metadata is available; no fabricated dollar estimate.
 
 ## Identity model
