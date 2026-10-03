@@ -59,28 +59,22 @@ export async function POST(req: Request) {
 
     const lengthCheck = validateContentLength(req.headers.get("content-length"));
     if (!lengthCheck.ok) {
-      return NextResponse.json(
-        { success: false, error: lengthCheck.error },
-        { status: 413, headers: { "Cache-Control": "no-store" } }
-      );
+      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      return respond({ success: false, error: lengthCheck.error }, 413);
     }
 
     const contentTypeCheck = validateUploadContentType(req.headers.get("content-type"));
     if (!contentTypeCheck.ok) {
-      return NextResponse.json(
-        { success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
-      );
+      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      return respond({ success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." }, 400);
     }
 
     let formData: FormData;
     try {
       formData = await req.formData();
     } catch {
-      return NextResponse.json(
-        { success: false, error: "Invalid upload request. Please check the blueprint files and try again." },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
-      );
+      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      return respond({ success: false, error: "Invalid upload request. Please check the blueprint files and try again." }, 400);
     }
     const files = formData.getAll("files") as File[];
 
@@ -94,26 +88,28 @@ export async function POST(req: Request) {
 
     const fileCheck = validateFiles(files);
     if (!fileCheck.ok) {
-      return NextResponse.json(
-        { success: false, error: fileCheck.error },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
-      );
+      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      return respond({ success: false, error: fileCheck.error }, 400);
     }
 
     const signatureCheck = await validateFileSignatures(files);
     if (!signatureCheck.ok) {
-      return NextResponse.json(
-        { success: false, error: signatureCheck.error },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      return respond({ success: false, error: signatureCheck.error }, 400);
+    }
+
+    const providerUsage = await policyStore.reserveProviderUsage(reservationId, identity, policyLimits);
+    if (!providerUsage.allowed) {
+      return respond(
+        { success: false, error: providerUsage.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
+        providerUsage.status
       );
     }
 
     const geminiKey = process.env.GEMINI_API_KEY;
     if (!geminiKey) {
-      return NextResponse.json(
-        { success: false, error: "Analysis is temporarily unavailable." },
-        { status: 503, headers: { "Cache-Control": "no-store" } }
-      );
+      await policyStore.recordResult({ reservationId, outcome: "server_error" });
+      return respond({ success: false, error: "Analysis is temporarily unavailable." }, 503);
     }
 
     const genAI = new GoogleGenerativeAI(geminiKey);
@@ -217,7 +213,8 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     });
 
     const rawText = result.response.text();
-    return NextResponse.json({
+    await policyStore.recordResult({ reservationId, outcome: "success" });
+    return respond({
       success: true,
       data: rawText,
       engine: "Rapid Matrix Engine™",
