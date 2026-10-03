@@ -115,3 +115,16 @@ export function validateUploadContentType(value: string | null) {
   }
   return { ok: true as const }
 }
+
+
+export function safeDocumentLabel(name: string, index: number) {
+  const fallback = `Document ${index + 1}`
+  if (!name) return fallback
+  const cleaned = name
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120)
+  return cleaned || fallback
+}
