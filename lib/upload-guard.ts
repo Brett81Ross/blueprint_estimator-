@@ -12,12 +12,9 @@ const ALLOWED_MIME_TYPES = new Set([
 function positiveInt(name: string, fallback: number) {
   const raw = process.env[name]
   if (!raw) return fallback
-  if (!/^[1-9]\d*$/.test(raw)) throw new Error(`${name} must be a positive integer`)
+  if (!/^[1-9]\d*$/.test(raw)) return fallback
   const parsed = Number(raw)
-  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
-    throw new Error(`${name} must be a positive safe integer`)
-  }
-  return parsed
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
 export function uploadLimits() {
