@@ -15,7 +15,7 @@ create table if not exists rapid_analysis_reservations (
   day_utc date not null,
   created_at timestamptz not null default now(),
   provider_started_at timestamptz,
-  outcome text check (outcome in ('success','provider_error','server_error','client_rejected')),
+  outcome text check (outcome in ('success','provider_error','server_error','client_rejected','policy_rejected')),
   input_tokens bigint,
   output_tokens bigint
 );
@@ -50,8 +50,8 @@ create table if not exists rapid_security_rejections (
 -- 1) Lock runtime control again and reject if disabled.
 -- 2) Lock the reservation and verify it belongs to the same subject/IP/plan and is not started.
 -- 3) Count provider-started reservations for subject/day, IP/day, and global/day.
--- 4) Reject when any approved daily threshold is reached.
--- 5) Set provider_started_at in this SAME transaction before returning ALLOW.
+-- 4) If runtime/daily policy rejects the request, finalize the reservation as policy_rejected in this transaction.
+-- 5) Otherwise set provider_started_at in this SAME transaction before returning ALLOW.
 --
 -- If upload validation fails between stages, record client_rejected. It still counts for burst
 -- abuse protection but never consumes provider-backed daily usage.
