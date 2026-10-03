@@ -57,7 +57,8 @@ Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallbac
 - Raw IP addresses and file contents are not persisted in rejection logs.
 - Hashing uses a dedicated RAPID_LOG_HASH_SECRET.
 - Rejection logs retain reason, stable privacy hash, truncated user agent, and content length only at the pre-parse stage.
-- Uploads rejected before Gemini are marked client_rejected and do not consume provider-backed daily usage, while still contributing to burst-abuse protection.
+- Uploads rejected during parsing/validation are marked client_rejected and do not consume provider-backed daily usage, while still contributing to burst-abuse protection.
+- A Stage 2 kill-switch/quota denial finalizes its existing attempt reservation as policy_rejected atomically; it must not leave an ambiguous pending reservation.
 - Provider token/cost fields are recorded only when authoritative usage metadata is available; no fabricated dollar estimate.
 
 ## Identity model
