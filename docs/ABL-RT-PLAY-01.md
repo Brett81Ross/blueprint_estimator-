@@ -24,6 +24,7 @@ The dedicated Google AI key identified as blueprint_estimator_key was revoked by
 - Missing Gemini key fails closed.
 - Backend exception details are no longer returned to clients or dumped wholesale into server logs.
 - Provider 429/503 responses are generic and non-cacheable; they do not make unapproved Free-tier/product-policy claims.
+- Model-input boundary treats uploaded document text/filenames as untrusted evidence rather than instructions; document labels and project-context form fields are normalized and bounded before entering the model prompt.
 - RAPID_ACCESS_SECRET no longer falls back to GEMINI_API_KEY.
 
 ## Deliberately not claimed complete
