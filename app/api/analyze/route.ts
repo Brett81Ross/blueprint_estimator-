@@ -3,7 +3,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType, safeDocumentLabel, safePromptField } from "../../../lib/upload-guard";
 import { configuredPolicyLimits, privacyHash, requestIp } from "../../../lib/analysis-policy";
 import { configuredPolicyStore } from "../../../lib/configured-policy-store";
-import { SUBJECT_COOKIE, verifySubjectToken } from "../../../lib/analysis-identity";
+import { SUBJECT_COOKIE, createSubjectToken, subjectCookieOptions, verifySubjectToken } from "../../../lib/analysis-identity";
+import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -18,16 +19,29 @@ export async function POST(req: Request) {
       .map((part) => part.trim())
       .find((part) => part.startsWith(`${SUBJECT_COOKIE}=`))
       ?.slice(SUBJECT_COOKIE.length + 1);
-    const subjectId = verifySubjectToken(subjectToken ? decodeURIComponent(subjectToken) : undefined);
+    let subjectId = verifySubjectToken(subjectToken ? decodeURIComponent(subjectToken) : undefined);
+    let newSubjectToken: string | undefined;
     if (!subjectId) {
-      return NextResponse.json(
-        { success: false, error: "Analysis session is unavailable. Please reload and try again." },
-        { status: 503, headers: { "Cache-Control": "no-store" } }
-      );
+      newSubjectToken = createSubjectToken();
+      subjectId = verifySubjectToken(newSubjectToken);
     }
+    if (!subjectId) throw new Error("Rapid Takeoff subject identity could not be established");
+
+    const proToken = cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${PRO_COOKIE}=`))
+      ?.slice(PRO_COOKIE.length + 1);
+    const plan = verifyProAccessToken(proToken ? decodeURIComponent(proToken) : undefined) ? "pro" as const : "free" as const;
+
+    const respond = (body: object, status = 200) => {
+      const response = NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+      if (newSubjectToken) response.cookies.set(SUBJECT_COOKIE, newSubjectToken, subjectCookieOptions());
+      return response;
+    };
 
     const identity = {
-      plan: "free" as const,
+      plan,
       subjectHash: privacyHash(subjectId),
       ipHash: privacyHash(requestIp(req.headers)),
       now: new Date(),
@@ -36,9 +50,9 @@ export async function POST(req: Request) {
     const policyLimits = configuredPolicyLimits();
     const admission = await policyStore.reserveAdmission(identity, policyLimits);
     if (!admission.allowed) {
-      return NextResponse.json(
+      return respond(
         { success: false, error: admission.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
-        { status: admission.status, headers: { "Cache-Control": "no-store" } }
+        admission.status
       );
     }
     const reservationId = admission.reservationId;
