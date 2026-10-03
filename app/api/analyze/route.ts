@@ -10,6 +10,17 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
+  let activePolicyStore: ReturnType<typeof configuredPolicyStore> | undefined;
+  let activeReservationId: string | undefined;
+  let providerStarted = false;
+  let outcomeRecorded = false;
+
+  const recordOutcome = async (outcome: "success" | "provider_error" | "server_error" | "client_rejected") => {
+    if (!activePolicyStore || !activeReservationId || outcomeRecorded) return;
+    await activePolicyStore.recordResult({ reservationId: activeReservationId, outcome });
+    outcomeRecorded = true;
+  };
+
   try {
     // Stage 1 runs before multipart parsing. Missing identity, limits, secrets,
     // database configuration, or durable-store availability fails closed.
@@ -47,6 +58,7 @@ export async function POST(req: Request) {
       now: new Date(),
     };
     const policyStore = configuredPolicyStore();
+    activePolicyStore = policyStore;
     const policyLimits = configuredPolicyLimits();
     const admission = await policyStore.reserveAdmission(identity, policyLimits);
     if (!admission.allowed) {
@@ -56,16 +68,17 @@ export async function POST(req: Request) {
       );
     }
     const reservationId = admission.reservationId;
+    activeReservationId = reservationId;
 
     const lengthCheck = validateContentLength(req.headers.get("content-length"));
     if (!lengthCheck.ok) {
-      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      await recordOutcome("client_rejected");
       return respond({ success: false, error: lengthCheck.error }, 413);
     }
 
     const contentTypeCheck = validateUploadContentType(req.headers.get("content-type"));
     if (!contentTypeCheck.ok) {
-      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      await recordOutcome("client_rejected");
       return respond({ success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." }, 400);
     }
 
@@ -73,7 +86,7 @@ export async function POST(req: Request) {
     try {
       formData = await req.formData();
     } catch {
-      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      await recordOutcome("client_rejected");
       return respond({ success: false, error: "Invalid upload request. Please check the blueprint files and try again." }, 400);
     }
     const files = formData.getAll("files") as File[];
@@ -88,13 +101,13 @@ export async function POST(req: Request) {
 
     const fileCheck = validateFiles(files);
     if (!fileCheck.ok) {
-      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      await recordOutcome("client_rejected");
       return respond({ success: false, error: fileCheck.error }, 400);
     }
 
     const signatureCheck = await validateFileSignatures(files);
     if (!signatureCheck.ok) {
-      await policyStore.recordResult({ reservationId, outcome: "client_rejected" });
+      await recordOutcome("client_rejected");
       return respond({ success: false, error: signatureCheck.error }, 400);
     }
 
@@ -106,9 +119,11 @@ export async function POST(req: Request) {
       );
     }
 
+    providerStarted = true;
+
     const geminiKey = process.env.GEMINI_API_KEY;
     if (!geminiKey) {
-      await policyStore.recordResult({ reservationId, outcome: "server_error" });
+      await recordOutcome("server_error");
       return respond({ success: false, error: "Analysis is temporarily unavailable." }, 503);
     }
 
@@ -213,7 +228,7 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     });
 
     const rawText = result.response.text();
-    await policyStore.recordResult({ reservationId, outcome: "success" });
+    await recordOutcome("success");
     return respond({
       success: true,
       data: rawText,
@@ -222,6 +237,12 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     });
 
   } catch (error: any) {
+    try {
+      await recordOutcome(providerStarted ? "provider_error" : "server_error");
+    } catch {
+      // Preserve the original request failure; ledger recording must not mask it.
+    }
+
     console.error("Rapid Takeoff analysis request failed", {
       name: error?.name || "Error",
       status: error?.status || error?.statusCode,
