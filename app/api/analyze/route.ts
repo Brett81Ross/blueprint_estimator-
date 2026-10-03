@@ -1,20 +1,47 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType, safeDocumentLabel, safePromptField } from "../../../lib/upload-guard";
+import { configuredPolicyLimits, privacyHash, requestIp } from "../../../lib/analysis-policy";
+import { configuredPolicyStore } from "../../../lib/configured-policy-store";
+import { SUBJECT_COOKIE, verifySubjectToken } from "../../../lib/analysis-identity";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    // Fail closed before multipart parsing. This is a temporary deployment gate;
-    // the durable Batch 0 kill switch/quota ledger will replace it before release.
-    if (process.env.RAPID_ANALYSIS_ENABLED !== "true") {
+    // Stage 1 runs before multipart parsing. Missing identity, limits, secrets,
+    // database configuration, or durable-store availability fails closed.
+    const cookieHeader = req.headers.get("cookie") || "";
+    const subjectToken = cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${SUBJECT_COOKIE}=`))
+      ?.slice(SUBJECT_COOKIE.length + 1);
+    const subjectId = verifySubjectToken(subjectToken ? decodeURIComponent(subjectToken) : undefined);
+    if (!subjectId) {
       return NextResponse.json(
-        { success: false, error: "Analysis is temporarily unavailable." },
+        { success: false, error: "Analysis session is unavailable. Please reload and try again." },
         { status: 503, headers: { "Cache-Control": "no-store" } }
       );
     }
+
+    const identity = {
+      plan: "free" as const,
+      subjectHash: privacyHash(subjectId),
+      ipHash: privacyHash(requestIp(req.headers)),
+      now: new Date(),
+    };
+    const policyStore = configuredPolicyStore();
+    const policyLimits = configuredPolicyLimits();
+    const admission = await policyStore.reserveAdmission(identity, policyLimits);
+    if (!admission.allowed) {
+      return NextResponse.json(
+        { success: false, error: admission.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
+        { status: admission.status, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    const reservationId = admission.reservationId;
 
     const lengthCheck = validateContentLength(req.headers.get("content-length"));
     if (!lengthCheck.ok) {
