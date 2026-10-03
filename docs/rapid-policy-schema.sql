@@ -7,6 +7,11 @@ create table if not exists rapid_runtime_control (
   updated_at timestamptz not null default now()
 );
 
+-- Deterministic fail-closed bootstrap: exactly one runtime-control row, disabled by default.
+insert into rapid_runtime_control (singleton, analysis_enabled)
+values (true, false)
+on conflict (singleton) do nothing;
+
 create table if not exists rapid_analysis_reservations (
   id uuid primary key,
   subject_hash text not null,
