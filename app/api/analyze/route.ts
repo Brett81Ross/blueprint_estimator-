@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType, safeDocumentLabel } from "../../../lib/upload-guard";
+import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType, safeDocumentLabel, safePromptField } from "../../../lib/upload-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -35,13 +35,13 @@ export async function POST(req: Request) {
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
 
-    const trade = formData.get("trade") || "General Contractor";
-    const ceilingHeight = formData.get("ceilingHeight") || "Not specified";
-    const projectType = formData.get("projectType") || "Not specified";
-    const scale = formData.get("scale") || "Not specified";
-    const sqft = formData.get("sqft") || "Not specified";
-    const laborRate = formData.get("laborRate") || "Not specified";
-    const location = formData.get("location") || "Not specified";
+    const trade = safePromptField(formData.get("trade"), "General Contractor");
+    const ceilingHeight = safePromptField(formData.get("ceilingHeight"), "Not specified");
+    const projectType = safePromptField(formData.get("projectType"), "Not specified");
+    const scale = safePromptField(formData.get("scale"), "Not specified");
+    const sqft = safePromptField(formData.get("sqft"), "Not specified");
+    const laborRate = safePromptField(formData.get("laborRate"), "Not specified");
+    const location = safePromptField(formData.get("location"), "Not specified");
 
     const fileCheck = validateFiles(files);
     if (!fileCheck.ok) {
