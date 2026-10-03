@@ -36,13 +36,14 @@ export interface AnalysisPolicyStore {
   reserveAdmission(input: AnalysisIdentity, limits: PolicyLimits): Promise<AdmissionDecision>
   /**
    * Stage 2: immediately before Gemini, atomically re-check the kill switch,
-   * enforce subject/IP/global provider-backed daily limits, and mark the
-   * reservation provider-started in the same transaction.
+   * enforce subject/IP/global provider-backed daily limits, and either finalize
+   * a denial as policy_rejected or mark the reservation provider-started in
+   * the same transaction.
    */
   reserveProviderUsage(reservationId: string, input: AnalysisIdentity, limits: PolicyLimits): Promise<ProviderUsageDecision>
   recordResult(input: {
     reservationId: string
-    outcome: 'success' | 'provider_error' | 'server_error' | 'client_rejected'
+    outcome: 'success' | 'provider_error' | 'server_error' | 'client_rejected' | 'policy_rejected'
     inputTokens?: number
     outputTokens?: number
   }): Promise<void>
