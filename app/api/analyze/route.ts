@@ -32,7 +32,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const formData = await req.formData();
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Invalid upload request. Please check the blueprint files and try again." },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     const files = formData.getAll("files") as File[];
 
     const trade = safePromptField(formData.get("trade"), "General Contractor");
