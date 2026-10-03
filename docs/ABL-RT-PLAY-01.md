@@ -20,7 +20,11 @@ The dedicated Google AI key identified as blueprint_estimator_key was revoked by
 - Bounded file count, per-file bytes, total bytes, and MIME allow-list.
 - Default upload envelope is 4 MiB total/per-file plus at most 256 KiB multipart framing, intentionally below Vercel's documented 4.5 MB Function request payload ceiling. Larger-document architecture must use a different upload path rather than raising this route above the host limit.
 - Content-Length rejection before multipart parsing when the header is present.
-- Temporary fail-closed RAPID_ANALYSIS_ENABLED gate before multipart parsing.
+- Durable two-stage policy enforcement is wired into the analysis route: Stage 1 before multipart parsing and Stage 2 immediately before provider setup/call.
+- The configured policy store fails closed when RAPID_DATABASE_URL is absent; no in-memory/permissive fallback exists.
+- A Neon serverless interactive-transaction executor is implemented behind the Rapid Takeoff-specific RAPID_DATABASE_URL boundary.
+- The Postgres policy adapter implements atomic kill-switch, burst, subject/IP/global daily quota, provider-start, result, and rejection-ledger operations.
+- First-use signed anonymous subject identity is bootstrapped by the analysis route; verified existing Pro entitlement selects the Pro policy lane.
 - Missing Gemini key fails closed.
 - Backend exception details are no longer returned to clients or dumped wholesale into server logs.
 - Provider 429/503 responses are generic and non-cacheable; they do not make unapproved Free-tier/product-policy claims.
@@ -28,8 +32,8 @@ The dedicated Google AI key identified as blueprint_estimator_key was revoked by
 - RAPID_ACCESS_SECRET no longer falls back to GEMINI_API_KEY.
 
 ## Deliberately not claimed complete
-- RAPID_ANALYSIS_ENABLED is NOT the final kill switch because changing an environment variable may require deployment/restart behavior. The release requires a durable runtime-readable flag.
-- Durable quota/rate-limit storage is not implemented yet. A fail-closed AnalysisPolicyStore interface now defines the runtime boundary; no existing CactusByte database is assumed or modified.
+- The durable adapter/executor are implemented in code, but NO Rapid Takeoff database has been provisioned, connected, or modified. The reference schema remains unapplied.
+- The runtime kill switch exists in the durable schema/adapter design but cannot be exercised until an isolated Rapid Takeoff database is provisioned and the schema is applied.
 - No arbitrary Free/Pro quotas are approved yet.
 - No replacement Gemini key has been created or installed.
 - No production environment variables have been changed.
@@ -39,12 +43,18 @@ The dedicated Google AI key identified as blueprint_estimator_key was revoked by
 Existing Pro cookies may have been signed with the legacy GEMINI_API_KEY fallback. Before release, establish RAPID_ACCESS_SECRET and define a migration path so legitimate lifetime access is not silently lost.
 
 ## Release gates
-- Durable store selected and isolated for Rapid Takeoff.
+- Provision a dedicated Rapid Takeoff database; do not reuse another CactusByte app database.
+- Apply docs/rapid-policy-schema.sql and verify the singleton runtime-control row exists with analysis_enabled=false.
+- Configure RAPID_DATABASE_URL, RAPID_SUBJECT_SECRET, RAPID_LOG_HASH_SECRET, and dedicated RAPID_ACCESS_SECRET without exposing values to source control.
+- Approve and configure RAPID_FREE_DAILY_LIMIT, RAPID_PRO_DAILY_LIMIT, RAPID_IP_BURST_LIMIT, RAPID_IP_BURST_WINDOW_SECONDS, RAPID_IP_DAILY_LIMIT, and RAPID_GLOBAL_DAILY_LIMIT. QA fixture values are not product policy.
+- Create/install a fresh Rapid Takeoff Gemini key only after the durable firewall is connected and verified; never reuse the revoked blueprint_estimator_key.
 - Kill switch fails closed and is fire-drilled.
 - Layered quota/rate controls verified.
 - Rejection logging verified without sensitive file contents/raw IP.
 - Upload guard tests pass.
-- Build/lint pass.
+- Typecheck, firewall tests, and production build pass on the exact release SHA.
+- Fire-drill the durable kill switch while it defaults OFF, then explicitly verify ON/OFF behavior without changing code.
+- Snapshot production environment variable names/scopes and verify the rollback candidate before deployment.
 - Rollback path verified.
 - Explicit owner approval before production deployment.
 
