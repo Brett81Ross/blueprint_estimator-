@@ -1,0 +1,40 @@
+name: Rapid Takeoff Firewall QA
+
+on:
+  push:
+    branches:
+      - dev/rt-play-batch0-firewall
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firewall-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RAPID_ANALYSIS_ENABLED: "false"
+      RAPID_SUBJECT_SECRET: qa-subject-secret-not-production
+      RAPID_LOG_HASH_SECRET: qa-log-secret-not-production
+      RAPID_FREE_DAILY_LIMIT: "2"
+      RAPID_PRO_DAILY_LIMIT: "20"
+      RAPID_IP_BURST_LIMIT: "3"
+      RAPID_IP_BURST_WINDOW_SECONDS: "60"
+      RAPID_IP_DAILY_LIMIT: "10"
+      RAPID_GLOBAL_DAILY_LIMIT: "100"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Firewall tests
+        run: npm run test:firewall
+      - name: Production build
+        run: npm run build
