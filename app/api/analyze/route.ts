@@ -62,6 +62,18 @@ export async function POST(req: Request) {
     const policyLimits = configuredPolicyLimits();
     const admission = await policyStore.reserveAdmission(identity, policyLimits);
     if (!admission.allowed) {
+      await policyStore.logRejection({
+        reason: admission.reason,
+        ipHash: identity.ipHash,
+        subjectHash: identity.subjectHash,
+        userAgent: truncateUserAgent(req.headers.get("user-agent")),
+        contentLength: (() => {
+          const raw = req.headers.get("content-length");
+          if (!raw || !/^\d+$/.test(raw)) return undefined;
+          const value = Number(raw);
+          return Number.isSafeInteger(value) ? value : undefined;
+        })(),
+      });
       return respond(
         { success: false, error: admission.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
         admission.status
@@ -133,6 +145,18 @@ export async function POST(req: Request) {
 
     const providerUsage = await policyStore.reserveProviderUsage(reservationId, identity, policyLimits);
     if (!providerUsage.allowed) {
+      await policyStore.logRejection({
+        reason: providerUsage.reason,
+        ipHash: identity.ipHash,
+        subjectHash: identity.subjectHash,
+        userAgent: truncateUserAgent(req.headers.get("user-agent")),
+        contentLength: (() => {
+          const raw = req.headers.get("content-length");
+          if (!raw || !/^\d+$/.test(raw)) return undefined;
+          const value = Number(raw);
+          return Number.isSafeInteger(value) ? value : undefined;
+        })(),
+      });
       return respond(
         { success: false, error: providerUsage.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
         providerUsage.status
