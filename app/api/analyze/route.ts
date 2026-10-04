@@ -155,7 +155,17 @@ export async function POST(req: Request) {
       return respond({ success: false, error: signatureCheck.error }, 400);
     }
 
-    const providerUsage = await policyStore.reserveProviderUsage(reservationId, identity, policyLimits);
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
+      await recordOutcome("server_error");
+      return respond({ success: false, error: "Analysis is temporarily unavailable." }, 503);
+    }
+
+    const providerUsage = await policyStore.reserveProviderUsage(
+      reservationId,
+      { ...identity, now: new Date() },
+      policyLimits
+    );
     if (!providerUsage.allowed) {
       await logPolicyRejection(providerUsage.reason);
       return respond(
@@ -165,12 +175,6 @@ export async function POST(req: Request) {
     }
 
     providerStarted = true;
-
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey) {
-      await recordOutcome("server_error");
-      return respond({ success: false, error: "Analysis is temporarily unavailable." }, 503);
-    }
 
     const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
