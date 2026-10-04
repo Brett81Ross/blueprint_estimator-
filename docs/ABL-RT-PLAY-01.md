@@ -83,3 +83,17 @@ Deleting cookies cannot bypass IP/global controls; changing IP cannot bypass sub
 ## Reference persistence design
 docs/rapid-policy-schema.sql is design-only and has NOT been applied to any database.
 The final store must provide the documented two-stage atomic reservation flow so concurrent serverless requests cannot race past the limits. Quota thresholds have one source of truth: explicit RAPID_* environment configuration; durable runtime control owns the live kill switch only.
+
+
+## Infrastructure checkpoint — 2026-10-04
+- Dedicated Neon project confirmed: rapid-takeoff (autumn-recipe-59487524), production branch br-gentle-butterfly-b4sijmfl.
+- Reference policy schema applied to the isolated Rapid Takeoff database only.
+- Production schema verified: rapid_runtime_control, rapid_analysis_reservations, rapid_security_rejections.
+- Initial ledger state verified empty.
+- Vercel Production-only configuration installed for RAPID_DATABASE_URL, RAPID_SUBJECT_SECRET, RAPID_LOG_HASH_SECRET, and RAPID_ACCESS_SECRET.
+- Initial operational safety caps configured as environment policy, not marketed entitlements: Free 3/day, Pro 25/day, IP burst 4/60s, IP 40/day, global 100/day.
+- Legacy lifetime-Pro migration: hardened release uses the dedicated RAPID_ACCESS_SECRET; legacy users may re-redeem their Rapid Takeoff coupon to mint a new signed lifetime-Pro cookie.
+- Durable kill-switch fire drill completed against the isolated production database: OFF -> ON (verified) -> OFF (verified).
+- Final observed state after fire drill: analysis_enabled=false.
+- Fresh Gemini credential is still NOT installed.
+- PR #3 remains Draft; no merge/deployment is authorized by this checkpoint.
