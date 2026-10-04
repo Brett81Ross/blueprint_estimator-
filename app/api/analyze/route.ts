@@ -14,6 +14,13 @@ export async function POST(req: Request) {
   let activeReservationId: string | undefined;
   let providerStarted = false;
   let outcomeRecorded = false;
+  let pendingSubjectToken: string | undefined;
+
+  const respond = (body: object, status = 200) => {
+    const response = NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+    if (pendingSubjectToken) response.cookies.set(SUBJECT_COOKIE, pendingSubjectToken, subjectCookieOptions());
+    return response;
+  };
 
   const recordOutcome = async (outcome: "success" | "provider_error" | "server_error" | "client_rejected") => {
     if (!activePolicyStore || !activeReservationId || outcomeRecorded) return;
@@ -31,10 +38,9 @@ export async function POST(req: Request) {
       .find((part) => part.startsWith(`${SUBJECT_COOKIE}=`))
       ?.slice(SUBJECT_COOKIE.length + 1);
     let subjectId = verifySubjectToken(subjectToken ? decodeURIComponent(subjectToken) : undefined);
-    let newSubjectToken: string | undefined;
     if (!subjectId) {
-      newSubjectToken = createSubjectToken();
-      subjectId = verifySubjectToken(newSubjectToken);
+      pendingSubjectToken = createSubjectToken();
+      subjectId = verifySubjectToken(pendingSubjectToken);
     }
     if (!subjectId) throw new Error("Rapid Takeoff subject identity could not be established");
 
@@ -45,12 +51,6 @@ export async function POST(req: Request) {
       ?.slice(PRO_COOKIE.length + 1);
     const plan = verifyProAccessToken(proToken ? decodeURIComponent(proToken) : undefined) ? "pro" as const : "free" as const;
 
-    const respond = (body: object, status = 200) => {
-      const response = NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
-      if (newSubjectToken) response.cookies.set(SUBJECT_COOKIE, newSubjectToken, subjectCookieOptions());
-      return response;
-    };
-
     const identity = {
       plan,
       subjectHash: privacyHash(subjectId),
@@ -60,20 +60,28 @@ export async function POST(req: Request) {
     const policyStore = configuredPolicyStore();
     activePolicyStore = policyStore;
     const policyLimits = configuredPolicyLimits();
+
+    const logPolicyRejection = async (reason: string) => {
+      try {
+        await policyStore.logRejection({
+          reason,
+          ipHash: identity.ipHash,
+          subjectHash: identity.subjectHash,
+          userAgent: truncateUserAgent(req.headers.get("user-agent")),
+          contentLength: (() => {
+            const raw = req.headers.get("content-length");
+            if (!raw || !/^\\d+$/.test(raw)) return undefined;
+            const value = Number(raw);
+            return Number.isSafeInteger(value) ? value : undefined;
+          })(),
+        });
+      } catch {
+        // Policy denial remains authoritative even if telemetry storage fails.
+      }
+    };
     const admission = await policyStore.reserveAdmission(identity, policyLimits);
     if (!admission.allowed) {
-      await policyStore.logRejection({
-        reason: admission.reason,
-        ipHash: identity.ipHash,
-        subjectHash: identity.subjectHash,
-        userAgent: truncateUserAgent(req.headers.get("user-agent")),
-        contentLength: (() => {
-          const raw = req.headers.get("content-length");
-          if (!raw || !/^\d+$/.test(raw)) return undefined;
-          const value = Number(raw);
-          return Number.isSafeInteger(value) ? value : undefined;
-        })(),
-      });
+      await logPolicyRejection(admission.reason);
       return respond(
         { success: false, error: admission.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
         admission.status
@@ -83,7 +91,8 @@ export async function POST(req: Request) {
     activeReservationId = reservationId;
 
     const logClientRejection = async (reason: string) => {
-      await policyStore.logRejection({
+      try {
+        await policyStore.logRejection({
         reason,
         ipHash: identity.ipHash,
         subjectHash: identity.subjectHash,
@@ -94,7 +103,10 @@ export async function POST(req: Request) {
           const value = Number(raw);
           return Number.isSafeInteger(value) ? value : undefined;
         })(),
-      });
+        });
+      } catch {
+        // Security telemetry must never replace the intended client rejection response.
+      }
     };
 
     const lengthCheck = validateContentLength(req.headers.get("content-length"));
@@ -145,18 +157,7 @@ export async function POST(req: Request) {
 
     const providerUsage = await policyStore.reserveProviderUsage(reservationId, identity, policyLimits);
     if (!providerUsage.allowed) {
-      await policyStore.logRejection({
-        reason: providerUsage.reason,
-        ipHash: identity.ipHash,
-        subjectHash: identity.subjectHash,
-        userAgent: truncateUserAgent(req.headers.get("user-agent")),
-        contentLength: (() => {
-          const raw = req.headers.get("content-length");
-          if (!raw || !/^\d+$/.test(raw)) return undefined;
-          const value = Number(raw);
-          return Number.isSafeInteger(value) ? value : undefined;
-        })(),
-      });
+      await logPolicyRejection(providerUsage.reason);
       return respond(
         { success: false, error: providerUsage.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
         providerUsage.status
@@ -295,22 +296,13 @@ Accuracy is more important than completeness. If evidence is weak, lower confide
     const errorMessage = error?.message || "";
 
     if (errorMessage.includes("429") || errorMessage.includes("quota")) {
-      return NextResponse.json(
-        { success: false, error: "Analysis capacity is temporarily limited. Please wait and try again." },
-        { status: 429, headers: { "Cache-Control": "no-store" } }
-      );
+      return respond({ success: false, error: "Analysis capacity is temporarily limited. Please wait and try again." }, 429);
     }
 
     if (errorMessage.includes("503")) {
-      return NextResponse.json(
-        { success: false, error: "Analysis is temporarily unavailable. Please try again shortly." },
-        { status: 503, headers: { "Cache-Control": "no-store" } }
-      );
+      return respond({ success: false, error: "Analysis is temporarily unavailable. Please try again shortly." }, 503);
     }
 
-    return NextResponse.json(
-      { success: false, error: "Analysis failed. Please try again later." },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
-    );
+    return respond({ success: false, error: "Analysis failed. Please try again later." }, 500);
   }
 }
