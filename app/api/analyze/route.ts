@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType, safeDocumentLabel, safePromptField } from "../../../lib/upload-guard";
-import { configuredPolicyLimits, privacyHash, requestIp } from "../../../lib/analysis-policy";
+import { configuredPolicyLimits, privacyHash, requestIp, truncateUserAgent } from "../../../lib/analysis-policy";
 import { configuredPolicyStore } from "../../../lib/configured-policy-store";
 import { SUBJECT_COOKIE, createSubjectToken, subjectCookieOptions, verifySubjectToken } from "../../../lib/analysis-identity";
 import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
@@ -70,15 +70,32 @@ export async function POST(req: Request) {
     const reservationId = admission.reservationId;
     activeReservationId = reservationId;
 
+    const logClientRejection = async (reason: string) => {
+      await policyStore.logRejection({
+        reason,
+        ipHash: identity.ipHash,
+        subjectHash: identity.subjectHash,
+        userAgent: truncateUserAgent(req.headers.get("user-agent")),
+        contentLength: (() => {
+          const raw = req.headers.get("content-length");
+          if (!raw || !/^\d+$/.test(raw)) return undefined;
+          const value = Number(raw);
+          return Number.isSafeInteger(value) ? value : undefined;
+        })(),
+      });
+    };
+
     const lengthCheck = validateContentLength(req.headers.get("content-length"));
     if (!lengthCheck.ok) {
       await recordOutcome("client_rejected");
+      await logClientRejection("content_length_rejected");
       return respond({ success: false, error: lengthCheck.error }, 413);
     }
 
     const contentTypeCheck = validateUploadContentType(req.headers.get("content-type"));
     if (!contentTypeCheck.ok) {
       await recordOutcome("client_rejected");
+      await logClientRejection("content_type_rejected");
       return respond({ success: false, error: "Invalid upload request. Please upload blueprints using the Rapid Takeoff form." }, 400);
     }
 
@@ -87,6 +104,7 @@ export async function POST(req: Request) {
       formData = await req.formData();
     } catch {
       await recordOutcome("client_rejected");
+      await logClientRejection("multipart_parse_rejected");
       return respond({ success: false, error: "Invalid upload request. Please check the blueprint files and try again." }, 400);
     }
     const files = formData.getAll("files") as File[];
@@ -102,12 +120,14 @@ export async function POST(req: Request) {
     const fileCheck = validateFiles(files);
     if (!fileCheck.ok) {
       await recordOutcome("client_rejected");
+      await logClientRejection("file_policy_rejected");
       return respond({ success: false, error: fileCheck.error }, 400);
     }
 
     const signatureCheck = await validateFileSignatures(files);
     if (!signatureCheck.ok) {
       await recordOutcome("client_rejected");
+      await logClientRejection("file_signature_rejected");
       return respond({ success: false, error: signatureCheck.error }, 400);
     }
 
