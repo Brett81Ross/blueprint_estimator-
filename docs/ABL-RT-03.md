@@ -27,6 +27,8 @@ Rapid Takeoff may estimate quantities from supported drawing evidence, but it mu
 - [x] Added analysis-prompt regression tests.
 - [x] Added pricing-guardrail suite to standard Rapid Takeoff CI.
 - [x] Extended the known-answer production harness so no-price fixtures must contain UNPRICED and must contain no dollar amounts.
+- [x] Added public build-info SHA endpoint for release verification.
+- [x] Changed engine-fixture QA to run on main release changes and wait until production reports the exact merged SHA before analyzing fixtures.
 
 ## Release gates
 - [ ] Final branch QA: typecheck.
