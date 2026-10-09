@@ -2,6 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const site = 'https://blueprint-estimator.vercel.app'
+const requestSpacingMs = 25_000
+const maxAttempts = 3
+let lastRequestStartedAt = 0
+
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
 const cases = [
   {
     id: 'concrete_C01',
@@ -39,8 +45,7 @@ const cases = [
 
 fs.mkdirSync('qa-results', { recursive: true })
 
-let failed = false
-for (const testCase of cases) {
+function formFor(testCase) {
   const form = new FormData()
   const bytes = fs.readFileSync(testCase.file)
   form.append('files', new Blob([bytes], { type: 'application/pdf' }), path.basename(testCase.file))
@@ -53,15 +58,63 @@ for (const testCase of cases) {
   form.append('laborRate', 'Not specified')
   form.append('costBasis', 'Not specified')
   form.append('scale', testCase.scale)
+  return form
+}
 
+async function paceRequest() {
+  const elapsed = Date.now() - lastRequestStartedAt
+  if (lastRequestStartedAt && elapsed < requestSpacingMs) {
+    const waitMs = requestSpacingMs - elapsed
+    console.log(`Pacing next provider request for ${Math.ceil(waitMs / 1000)}s.`)
+    await sleep(waitMs)
+  }
+  lastRequestStartedAt = Date.now()
+}
+
+async function analyzeWithRetry(testCase) {
+  let finalResponse
+  let finalPayload = {}
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    await paceRequest()
+    console.log(`Attempt ${attempt}/${maxAttempts}`)
+    const response = await fetch(`${site}/api/analyze`, { method: 'POST', body: formFor(testCase) })
+    const payload = await response.json().catch(() => ({}))
+    finalResponse = response
+    finalPayload = payload
+
+    if (response.ok && payload?.success === true && typeof payload?.data === 'string') {
+      return { response, payload }
+    }
+
+    const retryable = response.status === 429 || response.status === 503
+    console.error(`HTTP ${response.status}: ${payload?.error || 'Invalid response'}`)
+
+    if (!retryable || attempt === maxAttempts) break
+    console.log('Transient response detected; retrying after pacing interval.')
+  }
+
+  return { response: finalResponse, payload: finalPayload }
+}
+
+function withoutLatexMathDelimiters(report) {
+  return report.replace(/\$([^$\r\n]*\\[^$\r\n]*)\$/g, '$1')
+}
+
+function containsCurrencyAmount(report) {
+  const normalized = withoutLatexMathDelimiters(report)
+  return /(?:\$\s*\d[\d,]*(?:\.\d+)?|\b(?:USD|US\$)\s*\d[\d,]*(?:\.\d+)?)/i.test(normalized)
+}
+
+let failed = false
+for (const testCase of cases) {
   console.log(`\n=== ${testCase.id}: ${testCase.trade} ===`)
-  const response = await fetch(`${site}/api/analyze`, { method: 'POST', body: form })
-  const payload = await response.json().catch(() => ({}))
+  const { response, payload } = await analyzeWithRetry(testCase)
   fs.writeFileSync(`qa-results/${testCase.id}.json`, JSON.stringify(payload, null, 2))
 
-  if (!response.ok || payload?.success !== true || typeof payload?.data !== 'string') {
+  if (!response?.ok || payload?.success !== true || typeof payload?.data !== 'string') {
     failed = true
-    console.error(`FAIL HTTP ${response.status}: ${payload?.error || 'Invalid response'}`)
+    console.error(`FAIL final HTTP ${response?.status ?? 'unknown'}: ${payload?.error || 'Invalid response'}`)
     continue
   }
 
@@ -72,7 +125,6 @@ for (const testCase of cases) {
   const assertions = [
     ...testCase.assertions,
     { name: 'marks missing pricing basis as UNPRICED', pattern: /\bUNPRICED\b/i },
-    { name: 'does not invent dollar amounts without pricing basis', pattern: /\$\s?\d[\d,]*(?:\.\d+)?/, absent: true },
   ]
 
   for (const assertion of assertions) {
@@ -81,6 +133,10 @@ for (const testCase of cases) {
     console.log(`${passed ? 'PASS' : 'FAIL'}: ${assertion.name}`)
     if (!passed) failed = true
   }
+
+  const currencyFree = !containsCurrencyAmount(report)
+  console.log(`${currencyFree ? 'PASS' : 'FAIL'}: does not invent currency amounts without pricing basis`)
+  if (!currencyFree) failed = true
 }
 
 if (failed) process.exitCode = 1
