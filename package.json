@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:firewall": "tsx --test tests/firewall.test.ts",
     "test:project-inputs": "tsx --test tests/project-inputs.test.ts",
-    "test:neon-executor": "tsx --test tests/neon-policy-executor.test.ts"
+    "test:neon-executor": "tsx --test tests/neon-policy-executor.test.ts",
+    "test:analysis-prompt": "tsx --test tests/analysis-prompt.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.14.0",
