@@ -276,7 +276,7 @@ export default function Home() {
               <button type="button" onClick={() => removeFile(index)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-500/30 bg-red-950/30 text-lg font-black text-red-400" aria-label={`Remove ${entry.file.name}`}>×</button>
             </div>
           ))}
-        </div>
+        </div>}
 
         <button onClick={handleUpload} disabled={loading || !files.length} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase tracking-wider hover:bg-orange-400 disabled:opacity-50">
           {loading ? 'Rapid Matrix Engine™ analyzing…' : 'Run Rapid Matrix Engine™'}
