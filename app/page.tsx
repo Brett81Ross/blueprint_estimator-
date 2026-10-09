@@ -81,6 +81,7 @@ export default function Home() {
       verified: (text.match(/\bVERIFIED\b/g) || []).length,
       probable: (text.match(/\bPROBABLE\b/g) || []).length,
       review: (text.match(/\bNEEDS REVIEW\b/g) || []).length,
+      unpriced: (text.match(/\bUNPRICED\b/g) || []).length,
       conflicts: sections.find(s => s.title.toLowerCase().includes('conflict radar'))?.lines.filter(l => !/^none\.?$/i.test(l)).length || 0,
     }
   }, [report, sections])
@@ -305,10 +306,11 @@ export default function Home() {
               <div><div className="text-[10px] text-orange-500 font-black uppercase tracking-[0.2em]">Rapid Review Console™</div><h2 className="text-xl font-black mt-1">Verification dashboard</h2></div>
               <div className="flex gap-2"><button onClick={handlePrint} className="mini-btn">PDF / Print</button><button onClick={handleEmail} className="mini-btn">Email</button></div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
               <Metric label="Verified" value={confidence.verified} tone="green" />
               <Metric label="Probable" value={confidence.probable} tone="amber" />
               <Metric label="Needs Review" value={confidence.review} tone="red" />
+              <Metric label="Unpriced" value={confidence.unpriced} tone="orange" />
               <Metric label="Radar Items" value={confidence.conflicts} tone="orange" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -350,8 +352,8 @@ function renderLine(line:string,i:number,clean:(s:string)=>string) {
 }
 
 function decorateConfidence(text:string) {
-  const pieces = text.split(/(NEEDS REVIEW|PROBABLE|VERIFIED)/g)
-  return <>{pieces.map((part,i) => part === 'VERIFIED' ? <strong key={i} className="text-green-400">VERIFIED</strong> : part === 'PROBABLE' ? <strong key={i} className="text-amber-400">PROBABLE</strong> : part === 'NEEDS REVIEW' ? <strong key={i} className="text-red-400">NEEDS REVIEW</strong> : part)}</>
+  const pieces = text.split(/(NEEDS REVIEW|PROBABLE|VERIFIED|UNPRICED)/g)
+  return <>{pieces.map((part,i) => part === 'VERIFIED' ? <strong key={i} className="text-green-400">VERIFIED</strong> : part === 'PROBABLE' ? <strong key={i} className="text-amber-400">PROBABLE</strong> : part === 'NEEDS REVIEW' ? <strong key={i} className="text-red-400">NEEDS REVIEW</strong> : part === 'UNPRICED' ? <strong key={i} className="text-orange-400">UNPRICED</strong> : part)}</>
 }
 
 function formatBytes(bytes:number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB` }
