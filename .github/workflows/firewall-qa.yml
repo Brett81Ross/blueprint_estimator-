@@ -48,5 +48,7 @@ jobs:
         run: npm run test:firewall
       - name: Project input tests
         run: npm run test:project-inputs
+      - name: Neon executor regression tests
+        run: npm run test:neon-executor
       - name: Production build
         run: npm run build
