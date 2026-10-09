@@ -1,0 +1,33 @@
+name: Rapid Takeoff Engine Fixture QA
+
+on:
+  push:
+    branches:
+      - dev-rt-abl-02
+    paths:
+      - '.github/workflows/engine-fixture-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run known-answer engine fixtures
+        run: node scripts/engine-fixture-qa.mjs
+      - name: Upload fixture reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapid-takeoff-engine-fixture-reports
+          path: qa-results/
+          if-no-files-found: warn

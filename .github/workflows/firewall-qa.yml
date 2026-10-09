@@ -1,16 +1,26 @@
-name: Rapid Takeoff Firewall QA
+name: Rapid Takeoff QA
 
 on:
   push:
     branches:
-      - dev/rt-play-batch0-firewall
+      - 'dev-rt-*'
+      - 'dev/rt-*'
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  pull_request:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  firewall-qa:
+  qa:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -36,5 +46,9 @@ jobs:
         run: npm run typecheck
       - name: Firewall tests
         run: npm run test:firewall
+      - name: Project input tests
+        run: npm run test:project-inputs
+      - name: Neon executor regression tests
+        run: npm run test:neon-executor
       - name: Production build
         run: npm run build
