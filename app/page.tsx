@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import imageCompression from 'browser-image-compression'
+import RapidTools from './RapidTools'
+import { FILE_ACCEPT, RAPID_UPLOAD_LIMITS, SCALE_OPTIONS, SUPPORTED_UPLOAD_TYPES, TRADES, requiresCeilingHeight } from '../lib/project-inputs'
 
-interface FileWithPreview { file: File; preview: string }
+interface FileWithPreview { file: File; preview?: string }
 interface ReportSection { title: string; lines: string[] }
 
 const REVIEW_SECTIONS = [
@@ -24,7 +26,7 @@ export default function Home() {
   const [sqft, setSqft] = useState('')
   const [floors, setFloors] = useState('')
   const [laborRate, setLaborRate] = useState('')
-  const [scale, setScale] = useState('1/4" = 1\'0"')
+  const [scale, setScale] = useState('Auto Detect / Mixed Sheets')
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -35,6 +37,8 @@ export default function Home() {
   const [couponMessage, setCouponMessage] = useState<string | null>(null)
   const [couponError, setCouponError] = useState<string | null>(null)
   const reportRef = useRef<HTMLDivElement>(null)
+  const previewUrlsRef = useRef<Set<string>>(new Set())
+  const ceilingHeightRequired = requiresCeilingHeight(trade)
 
   useEffect(() => {
     let active = true
@@ -49,7 +53,10 @@ export default function Home() {
     if (report && reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [report])
 
-  useEffect(() => () => files.forEach(f => URL.revokeObjectURL(f.preview)), [files])
+  useEffect(() => () => {
+    previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
+    previewUrlsRef.current.clear()
+  }, [])
 
   const sections = useMemo<ReportSection[]>(() => {
     if (!report) return []
@@ -79,33 +86,98 @@ export default function Home() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files?.length) return
-    const newFiles = Array.from(e.target.files).map(file => ({ file, preview: URL.createObjectURL(file) }))
+    const incoming = Array.from(e.target.files)
+
+    if (files.length + incoming.length > RAPID_UPLOAD_LIMITS.maxFiles) {
+      setErrorMessage(`Upload at most ${RAPID_UPLOAD_LIMITS.maxFiles} blueprint files at a time.`)
+      e.target.value = ''
+      return
+    }
+
+    const unsupported = incoming.find(file => !SUPPORTED_UPLOAD_TYPES.has(file.type))
+    if (unsupported) {
+      setErrorMessage(`${unsupported.name} is not a supported blueprint file. Use PDF, JPEG, PNG, or WebP.`)
+      e.target.value = ''
+      return
+    }
+
+    const newFiles: FileWithPreview[] = incoming.map(file => {
+      if (!file.type.startsWith('image/')) return { file }
+      const preview = URL.createObjectURL(file)
+      previewUrlsRef.current.add(preview)
+      return { file, preview }
+    })
+
     setFiles(prev => [...prev, ...newFiles])
     setReport(null)
     setErrorMessage(null)
+    e.target.value = ''
   }
 
-  const removeFile = (index: number) => setFiles(files.filter((_, i) => i !== index))
+  const removeFile = (index: number) => {
+    setFiles(current => {
+      const target = current[index]
+      if (target?.preview) {
+        URL.revokeObjectURL(target.preview)
+        previewUrlsRef.current.delete(target.preview)
+      }
+      return current.filter((_, i) => i !== index)
+    })
+  }
 
   const handleUpload = async () => {
-    if (!files.length || !ceilingHeight) return alert('At least one blueprint and Ceiling Height are required.')
-    setLoading(true); setReport(null); setErrorMessage(null)
+    if (!files.length) {
+      setErrorMessage('Add at least one blueprint before running the Rapid Matrix Engine™.')
+      return
+    }
+    if (ceilingHeightRequired && !ceilingHeight.trim()) {
+      setErrorMessage(`Ceiling Height is required for ${trade} because vertical quantities can depend on it.`)
+      return
+    }
+
+    setLoading(true)
+    setReport(null)
+    setErrorMessage(null)
     const formData = new FormData()
     const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true }
+
     try {
-      for (const f of files) {
-        formData.append('files', f.file.type.startsWith('image/') ? await imageCompression(f.file, options) : f.file)
+      const payloadFiles: File[] = []
+      for (const entry of files) {
+        const processed = entry.file.type.startsWith('image/')
+          ? await imageCompression(entry.file, options)
+          : entry.file
+
+        if (processed.size > RAPID_UPLOAD_LIMITS.maxFileBytes) {
+          throw new Error(`${entry.file.name} is still over the 4 MB upload limit after processing.`)
+        }
+        payloadFiles.push(processed)
       }
-      formData.append('trade', trade); formData.append('ceilingHeight', ceilingHeight)
-      formData.append('projectType', projectType); formData.append('location', location)
-      formData.append('sqft', sqft); formData.append('floors', floors); formData.append('laborRate', laborRate); formData.append('scale', scale)
+
+      const totalBytes = payloadFiles.reduce((sum, file) => sum + file.size, 0)
+      if (totalBytes > RAPID_UPLOAD_LIMITS.maxTotalBytes) {
+        throw new Error('Combined upload is over 4 MB after image compression. Remove a sheet or use smaller files.')
+      }
+
+      for (const file of payloadFiles) formData.append('files', file)
+      formData.append('trade', trade)
+      formData.append('ceilingHeight', ceilingHeight)
+      formData.append('projectType', projectType)
+      formData.append('location', location)
+      formData.append('sqft', sqft)
+      formData.append('floors', floors)
+      formData.append('laborRate', laborRate)
+      formData.append('scale', scale)
+
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
       const data = await response.json()
       if (response.ok) setReport(data.data)
       else setErrorMessage(data.error || 'Unknown server error.')
-    } catch {
-      setErrorMessage('Network Timeout: the blueprint set took too long to process. Try fewer or smaller files.')
-    } finally { setLoading(false) }
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'The blueprint set could not be processed. Try fewer or smaller files.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const cleanText = (text: string) => text.replace(/\*\*/g, '').replace(/\*/g, '').trim()
@@ -135,8 +207,12 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-4 md:p-8 flex flex-col items-center bg-zinc-950 font-sans text-zinc-100">
-      <div className="w-full max-w-3xl mb-4 flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-zinc-500">
-        <span>Rapid Matrix Engine™</span><span>v0.3.0</span>
+      <div className="w-full max-w-3xl mb-4 flex flex-wrap items-center justify-between gap-2 text-[10px] uppercase tracking-[0.2em] text-zinc-500">
+        <span>Rapid Matrix Engine™</span>
+        <div className="flex items-center gap-2">
+          <RapidTools trade={trade} setTrade={setTrade} projectType={projectType} setProjectType={setProjectType} scale={scale} setScale={setScale} />
+          <span>v0.3.0</span>
+        </div>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 shadow-2xl rounded-2xl w-full max-w-3xl p-6 md:p-8 mb-6">
@@ -163,12 +239,15 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <select className="field" value={trade} onChange={e => setTrade(e.target.value)}>
-            {['General Contractor','Architect','Carpenter / Framer','Concrete & Masonry','Electrician','Excavator','Flooring Specialist','HVAC Technician','Insulation Contractor','Landscaper','Low Voltage / Security','Painter','Plumber','Roofing Contractor','Siding Contractor','Structural Engineer','Boilermaker','Carpet / Linoleum Installer','Crane Operator','Dredger','Elevator Mechanic','Fence Contractor / Fencer','Glazier','Heavy Equipment Operator','Ironworker / Steel Erector','Construction Laborer','Lineman / Power Line Technician','Millwright','Pile Driver','Pipefitter / Steamfitter','Pipelayer','Plasterer','Sheet Metal Worker','Sign Display Worker','Steel Fixer / Rebar Installer','Teamster / Construction Hauling','Welder'].map(v => <option key={v}>{v}</option>)}
+            {TRADES.map(value => <option key={value}>{value}</option>)}
           </select>
-          <input className="field" placeholder="Ceiling Height *" value={ceilingHeight} onChange={e => setCeilingHeight(e.target.value)} />
+          <div>
+            <input className="field" placeholder={ceilingHeightRequired ? 'Ceiling Height *' : 'Ceiling Height (Optional)'} value={ceilingHeight} onChange={e => setCeilingHeight(e.target.value)} />
+            <p className="mt-1 px-1 text-[10px] text-zinc-500">{ceilingHeightRequired ? `Required for ${trade} vertical quantity checks.` : 'Not required for this trade; add it when the plans make it useful.'}</p>
+          </div>
           <input className="field" placeholder="Project Type" value={projectType} onChange={e => setProjectType(e.target.value)} />
           <select className="field" value={scale} onChange={e => setScale(e.target.value)}>
-            {['1/8" = 1\'0"','1/4" = 1\'0"','1/2" = 1\'0"','1" = 1\'0"','1:50','1:100'].map(v => <option key={v}>{v}</option>)}
+            {SCALE_OPTIONS.map(value => <option key={value}>{value}</option>)}
           </select>
           <input className="field" placeholder="Total SqFt (Optional)" value={sqft} onChange={e => setSqft(e.target.value)} />
           <input className="field" placeholder="Number of Floors (Optional)" value={floors} onChange={e => setFloors(e.target.value)} />
@@ -176,12 +255,28 @@ export default function Home() {
           <input className="field" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
         </div>
 
-        <div className="flex gap-4 mb-4">
-          <label className="flex-1 border-2 border-orange-500/50 p-6 rounded-xl text-orange-500 text-center font-bold cursor-pointer hover:bg-orange-500/10">Take Blueprint Pics<input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} /></label>
-          <label className="flex-1 border-2 border-dashed border-zinc-700 p-6 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800">Upload Files<input type="file" multiple className="hidden" onChange={handleFileChange} /></label>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <label className="border-2 border-orange-500/50 p-5 rounded-xl text-orange-500 text-center font-bold cursor-pointer hover:bg-orange-500/10">Take Blueprint Pics<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden" onChange={handleFileChange} /></label>
+          <label className="border-2 border-dashed border-zinc-700 p-5 rounded-xl text-zinc-400 text-center font-bold cursor-pointer hover:bg-zinc-800">Upload Plans<input type="file" accept={FILE_ACCEPT} multiple className="hidden" onChange={handleFileChange} /></label>
         </div>
+        <p className="mb-4 text-center text-[10px] leading-relaxed text-zinc-500">PDF, JPEG, PNG or WebP · up to 8 files · 4 MB combined after image compression. PDFs are not compressed.</p>
 
-        {!!files.length && <div className="flex flex-wrap gap-4 mb-6 p-4 border border-zinc-800 rounded-xl bg-zinc-950/50">{files.map((f,i) => <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-zinc-700"><img src={f.preview} alt={`Upload ${i+1}`} className="object-cover w-full h-full"/><button onClick={() => removeFile(i)} className="absolute top-1 right-1 bg-red-500/80 text-white rounded-full w-5 h-5 text-xs font-bold">×</button></div>)}</div>}
+        {!!files.length && <div className="grid gap-3 mb-6 p-4 border border-zinc-800 rounded-xl bg-zinc-950/50">
+          {files.map((entry, index) => (
+            <div key={entry.file.name + index} className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+              <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950">
+                {entry.preview
+                  ? <img src={entry.preview} alt={`Preview of ${entry.file.name}`} className="h-full w-full object-cover" />
+                  : <span className="text-xs font-black uppercase tracking-wider text-orange-400">PDF</span>}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-zinc-200">{entry.file.name}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-zinc-500">{entry.file.type.replace('application/', '').replace('image/', '')} · {formatBytes(entry.file.size)}</div>
+              </div>
+              <button type="button" onClick={() => removeFile(index)} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-red-500/30 bg-red-950/30 text-lg font-black text-red-400" aria-label={`Remove ${entry.file.name}`}>×</button>
+            </div>
+          ))}
+        </div>
 
         <button onClick={handleUpload} disabled={loading || !files.length} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase tracking-wider hover:bg-orange-400 disabled:opacity-50">
           {loading ? 'Rapid Matrix Engine™ analyzing…' : 'Run Rapid Matrix Engine™'}
@@ -245,6 +340,7 @@ function decorateConfidence(text:string) {
   return <>{pieces.map((part,i) => part === 'VERIFIED' ? <strong key={i} className="text-green-400">VERIFIED</strong> : part === 'PROBABLE' ? <strong key={i} className="text-amber-400">PROBABLE</strong> : part === 'NEEDS REVIEW' ? <strong key={i} className="text-red-400">NEEDS REVIEW</strong> : part)}</>
 }
 
+function formatBytes(bytes:number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB` }
 function normalizeTitle(value:string) { return value.toLowerCase().replace(/[^a-z0-9]+/g,' ').trim() }
 function slug(value:string) { return normalizeTitle(value).replace(/\s+/g,'-') }
 function sectionEyebrow(title:string) {
