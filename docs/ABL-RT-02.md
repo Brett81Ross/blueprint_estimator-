@@ -80,3 +80,32 @@ Still pending in this ABL:
 - [ ] Review NativeInstall.tsx and SplashGate.tsx intent before wiring or deleting them.
 - [ ] Capture final rollback SHA and bump version only after release scope is locked.
 - [ ] No production deployment until explicit owner approval.
+
+
+## Hardened-path failure discovery — 2026-10-08
+
+Controlled production QA fixtures:
+- Concrete C-01 known answer: 600 SF slab, approximately 7.41 CY.
+- Painter P-01 known answer: 715 SF net painted wall area.
+- Plumbing PL-01 known answer: 4 fixtures with plan/schedule reconciliation and no double-counting.
+
+Observed production result before provider execution:
+- All three /api/analyze requests returned HTTP 500.
+- Neon recorded three Stage-1 admission reservations.
+- All three had provider_started_at = null and outcome = null.
+- No security rejection rows were created.
+- Therefore the failure occurred after durable admission and before Gemini provider start.
+
+Root cause:
+- neonPolicyExecutor() created one Pool when the policy store was constructed.
+- reserveAdmission() completed its transaction and called pool.end().
+- reserveProviderUsage() then attempted a second transaction using that already-ended Pool.
+- The request therefore failed before Gemini, and the older executor could not reliably record the terminal outcome either.
+
+Development fix:
+- [x] neonPolicyExecutor now creates and closes a fresh Pool for each transaction.
+- [x] Added a regression test proving two sequential policy transactions both succeed and use separate pools.
+- [x] Added rollback/cleanup regression coverage.
+- [x] Added the executor regression test to the standard Rapid Takeoff QA gate.
+- [ ] The fix is NOT deployed. Production remains v0.3.0 on the prior main SHA.
+- [ ] Known-answer fixture QA must be rerun only after an explicitly approved production deployment of the fix.
