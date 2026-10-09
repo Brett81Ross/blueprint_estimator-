@@ -26,6 +26,7 @@ export default function Home() {
   const [sqft, setSqft] = useState('')
   const [floors, setFloors] = useState('')
   const [laborRate, setLaborRate] = useState('')
+  const [costBasis, setCostBasis] = useState('')
   const [scale, setScale] = useState('Auto Detect / Mixed Sheets')
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
@@ -167,6 +168,7 @@ export default function Home() {
       formData.append('sqft', sqft)
       formData.append('floors', floors)
       formData.append('laborRate', laborRate)
+      formData.append('costBasis', costBasis)
       formData.append('scale', scale)
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
@@ -252,7 +254,19 @@ export default function Home() {
           <input className="field" placeholder="Total SqFt (Optional)" value={sqft} onChange={e => setSqft(e.target.value)} />
           <input className="field" placeholder="Number of Floors (Optional)" value={floors} onChange={e => setFloors(e.target.value)} />
           <input className="field" placeholder="Location (Optional)" value={location} onChange={e => setLocation(e.target.value)} />
-          <input className="field" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+          <div>
+            <input className="field" placeholder="Labor Rate (Optional, e.g. $65/hr)" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+            <p className="mt-1 px-1 text-[10px] text-zinc-500">Leave blank and Rapid Takeoff will not invent a labor dollar rate.</p>
+          </div>
+          <div className="md:col-span-2">
+            <textarea
+              className="field min-h-24 resize-y"
+              placeholder="Cost / Unit Price Basis (Optional) — e.g. Concrete $145/CY; rebar $0.82/lb; supplier quote dated 10/8/26"
+              value={costBasis}
+              onChange={e => setCostBasis(e.target.value)}
+            />
+            <p className="mt-1 px-1 text-[10px] leading-relaxed text-zinc-500">Only enter pricing you actually want used. If this is blank and the uploaded documents contain no pricing, material costs stay UNPRICED instead of being guessed.</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
