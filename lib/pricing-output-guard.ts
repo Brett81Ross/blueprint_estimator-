@@ -1,7 +1,7 @@
-const CURRENCY_AMOUNT = /(?:US\\$|\\$)\\s*\\d[\\d,]*(?:\\.\\d+)?/gi
+const CURRENCY_AMOUNT = /(?:US\$|\$)\s*\d[\d,]*(?:\.\d+)?/gi
 
 const UNPRICED_MARKERS = [
-  /\\bUNPRICED\\b/i,
+  /\bUNPRICED\b/i,
   /pricing basis not supplied/i,
   /labor rate not supplied/i,
 ]
@@ -15,7 +15,7 @@ export function guardPricingOutput(report: string): PricingOutputGuardResult {
   let replacements = 0
 
   const text = report
-    .split(/\\r?\\n/)
+    .split(/\r?\n/)
     .map(line => {
       const explicitlyUnpriced = UNPRICED_MARKERS.some(marker => marker.test(line))
       if (!explicitlyUnpriced) return line
@@ -25,7 +25,7 @@ export function guardPricingOutput(report: string): PricingOutputGuardResult {
         return 'UNPRICED'
       })
     })
-    .join('\\n')
+    .join('\n')
 
   return { text, replacements }
 }
