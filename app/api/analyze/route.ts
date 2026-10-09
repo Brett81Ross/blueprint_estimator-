@@ -6,6 +6,7 @@ import { configuredPolicyStore } from "../../../lib/configured-policy-store";
 import { SUBJECT_COOKIE, createSubjectToken, subjectCookieOptions, verifySubjectToken } from "../../../lib/analysis-identity";
 import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
 import { buildAnalysisPrompt } from "../../../lib/analysis-prompt";
+import { withTransientProviderRetry } from "../../../lib/provider-retry";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -213,9 +214,18 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts }],
-    });
+    const result = await withTransientProviderRetry(
+      () => model.generateContent({
+        contents: [{ role: "user", parts }],
+      }),
+      {
+        maxAttempts: 3,
+        delaysMs: [1_000, 2_500],
+        onRetry: ({ attempt, nextAttempt, status }) => {
+          console.warn("Rapid Takeoff transient provider retry", { attempt, nextAttempt, status });
+        },
+      }
+    );
 
     const rawText = result.response.text();
     await recordOutcome("success");

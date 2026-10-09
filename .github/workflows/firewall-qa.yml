@@ -52,5 +52,7 @@ jobs:
         run: npm run test:neon-executor
       - name: Analysis prompt guardrail tests
         run: npm run test:analysis-prompt
+      - name: Provider retry regression tests
+        run: npm run test:provider-retry
       - name: Production build
         run: npm run build
