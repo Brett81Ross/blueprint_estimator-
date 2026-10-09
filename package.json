@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:firewall": "tsx --test tests/firewall.test.ts"
+    "test:firewall": "tsx --test tests/firewall.test.ts",
+    "test:project-inputs": "tsx --test tests/project-inputs.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.14.0",
