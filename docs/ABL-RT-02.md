@@ -45,3 +45,38 @@ Production: Rapid Takeoff v0.3.0
 
 ## Current release gate
 Do not deploy. Continue accumulating, implementing, and QA-validating approved ABL items on dev-rt-abl-02. Before production release: typecheck, firewall tests, build, UI smoke test, representative takeoff test, policy ledger verification, rollback SHA capture, and explicit owner approval.
+
+
+## Implementation checkpoint — 2026-10-08
+
+Completed on dev-rt-abl-02:
+- [x] Centralized the 37-trade catalog and scale/input policy in lib/project-inputs.ts.
+- [x] Made ceiling-height validation trade-aware so exterior/site/equipment/hauling scopes are not universally blocked.
+- [x] Added Auto Detect / Mixed Sheets and Unknown / Not Provided scale workflows.
+- [x] Passed Number of Floors through the analyzer route; it was previously collected in the UI but ignored by the model context.
+- [x] Added explicit mixed-sheet/unknown-scale instructions so the engine lowers confidence instead of assuming one project-wide scale.
+- [x] Restricted upload pickers to PDF, JPEG, PNG, and WebP.
+- [x] Added client-side upload-envelope checks after image compression.
+- [x] Replaced broken PDF image previews with typed file cards showing filename, format, size, and remove control.
+- [x] Fixed object-URL lifecycle handling for image previews.
+- [x] Added device-local Settings for default trade, project type, and scale handling.
+- [x] Added Share with native share fallback, copy-link support, and an on-brand Rapid Takeoff QR card generated locally in the browser.
+- [x] Made the Cactus🌵Byte Studios™ footer link open the CactusByte Studios app/site.
+- [x] Generalized GitHub QA to active Rapid Takeoff development branches and pull requests to main.
+- [x] Added project-input regression tests for trade count, trade-aware ceiling rules, scale modes, and upload limits.
+- [x] Disabled Vercel preview deployments for the project so development-branch work does not consume preview deployment quota.
+- [x] Added CI paths-ignore for documentation-only changes to avoid wasting Actions minutes.
+- [x] Full branch QA passed after implementation: TypeScript, firewall tests, project-input tests, and Next.js production build.
+
+Still pending in this ABL:
+- [ ] Reconcile the historical ABL-RT-PLAY-01 checkpoint with current production state without rewriting history.
+- [ ] Run representative end-to-end blueprint takeoff QA across multiple trades on the hardened production path.
+- [ ] Validate ProofTrace, SheetLink, Conflict Radar, and Confidence Matrix output against known plan facts.
+- [ ] Verify controlled quota/policy ledger recording with real analysis traffic.
+- [ ] Define lifetime-Pro recovery across cleared browser data or device replacement.
+- [ ] Improve long-report export beyond mailto.
+- [ ] Decide whether saved projects/jobs belongs in this release or a later monetization batch.
+- [ ] Run physical responsive QA on Galaxy Z Fold folded/unfolded plus standard Android/iOS viewport sizes.
+- [ ] Review NativeInstall.tsx and SplashGate.tsx intent before wiring or deleting them.
+- [ ] Capture final rollback SHA and bump version only after release scope is locked.
+- [ ] No production deployment until explicit owner approval.
