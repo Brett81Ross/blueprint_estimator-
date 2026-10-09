@@ -51,6 +51,7 @@ for (const testCase of cases) {
   form.append('sqft', 'Not specified')
   form.append('floors', '1')
   form.append('laborRate', 'Not specified')
+  form.append('costBasis', 'Not specified')
   form.append('scale', testCase.scale)
 
   console.log(`\n=== ${testCase.id}: ${testCase.trade} ===`)
@@ -68,7 +69,13 @@ for (const testCase of cases) {
   fs.writeFileSync(`qa-results/${testCase.id}.md`, report)
   console.log(`HTTP ${response.status}; report length ${report.length}`)
 
-  for (const assertion of testCase.assertions) {
+  const assertions = [
+    ...testCase.assertions,
+    { name: 'marks missing pricing basis as UNPRICED', pattern: /\bUNPRICED\b/i },
+    { name: 'does not invent dollar amounts without pricing basis', pattern: /\$\s?\d[\d,]*(?:\.\d+)?/, absent: true },
+  ]
+
+  for (const assertion of assertions) {
     const matched = assertion.pattern.test(report)
     const passed = assertion.absent ? !matched : matched
     console.log(`${passed ? 'PASS' : 'FAIL'}: ${assertion.name}`)

@@ -50,5 +50,7 @@ jobs:
         run: npm run test:project-inputs
       - name: Neon executor regression tests
         run: npm run test:neon-executor
+      - name: Analysis prompt guardrail tests
+        run: npm run test:analysis-prompt
       - name: Production build
         run: npm run build

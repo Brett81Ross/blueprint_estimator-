@@ -26,6 +26,7 @@ export default function Home() {
   const [sqft, setSqft] = useState('')
   const [floors, setFloors] = useState('')
   const [laborRate, setLaborRate] = useState('')
+  const [costBasis, setCostBasis] = useState('')
   const [scale, setScale] = useState('Auto Detect / Mixed Sheets')
   const [loading, setLoading] = useState(false)
   const [report, setReport] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export default function Home() {
       verified: (text.match(/\bVERIFIED\b/g) || []).length,
       probable: (text.match(/\bPROBABLE\b/g) || []).length,
       review: (text.match(/\bNEEDS REVIEW\b/g) || []).length,
+      unpriced: (text.match(/\bUNPRICED\b/g) || []).length,
       conflicts: sections.find(s => s.title.toLowerCase().includes('conflict radar'))?.lines.filter(l => !/^none\.?$/i.test(l)).length || 0,
     }
   }, [report, sections])
@@ -167,6 +169,7 @@ export default function Home() {
       formData.append('sqft', sqft)
       formData.append('floors', floors)
       formData.append('laborRate', laborRate)
+      formData.append('costBasis', costBasis)
       formData.append('scale', scale)
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
@@ -252,7 +255,19 @@ export default function Home() {
           <input className="field" placeholder="Total SqFt (Optional)" value={sqft} onChange={e => setSqft(e.target.value)} />
           <input className="field" placeholder="Number of Floors (Optional)" value={floors} onChange={e => setFloors(e.target.value)} />
           <input className="field" placeholder="Location (Optional)" value={location} onChange={e => setLocation(e.target.value)} />
-          <input className="field" placeholder="Local Labor Rate (Optional)" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+          <div>
+            <input className="field" placeholder="Labor Rate (Optional, e.g. $65/hr)" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+            <p className="mt-1 px-1 text-[10px] text-zinc-500">Leave blank and Rapid Takeoff will not invent a labor dollar rate.</p>
+          </div>
+          <div className="md:col-span-2">
+            <textarea
+              className="field min-h-24 resize-y"
+              placeholder="Cost / Unit Price Basis (Optional) — e.g. Concrete $145/CY; rebar $0.82/lb; supplier quote dated 10/8/26"
+              value={costBasis}
+              onChange={e => setCostBasis(e.target.value)}
+            />
+            <p className="mt-1 px-1 text-[10px] leading-relaxed text-zinc-500">Only enter pricing you actually want used. If this is blank and the uploaded documents contain no pricing, material costs stay UNPRICED instead of being guessed.</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -291,10 +306,11 @@ export default function Home() {
               <div><div className="text-[10px] text-orange-500 font-black uppercase tracking-[0.2em]">Rapid Review Console™</div><h2 className="text-xl font-black mt-1">Verification dashboard</h2></div>
               <div className="flex gap-2"><button onClick={handlePrint} className="mini-btn">PDF / Print</button><button onClick={handleEmail} className="mini-btn">Email</button></div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
               <Metric label="Verified" value={confidence.verified} tone="green" />
               <Metric label="Probable" value={confidence.probable} tone="amber" />
               <Metric label="Needs Review" value={confidence.review} tone="red" />
+              <Metric label="Unpriced" value={confidence.unpriced} tone="orange" />
               <Metric label="Radar Items" value={confidence.conflicts} tone="orange" />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -336,8 +352,8 @@ function renderLine(line:string,i:number,clean:(s:string)=>string) {
 }
 
 function decorateConfidence(text:string) {
-  const pieces = text.split(/(NEEDS REVIEW|PROBABLE|VERIFIED)/g)
-  return <>{pieces.map((part,i) => part === 'VERIFIED' ? <strong key={i} className="text-green-400">VERIFIED</strong> : part === 'PROBABLE' ? <strong key={i} className="text-amber-400">PROBABLE</strong> : part === 'NEEDS REVIEW' ? <strong key={i} className="text-red-400">NEEDS REVIEW</strong> : part)}</>
+  const pieces = text.split(/(NEEDS REVIEW|PROBABLE|VERIFIED|UNPRICED)/g)
+  return <>{pieces.map((part,i) => part === 'VERIFIED' ? <strong key={i} className="text-green-400">VERIFIED</strong> : part === 'PROBABLE' ? <strong key={i} className="text-amber-400">PROBABLE</strong> : part === 'NEEDS REVIEW' ? <strong key={i} className="text-red-400">NEEDS REVIEW</strong> : part === 'UNPRICED' ? <strong key={i} className="text-orange-400">UNPRICED</strong> : part)}</>
 }
 
 function formatBytes(bytes:number) { return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB` }
