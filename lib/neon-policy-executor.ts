@@ -7,17 +7,33 @@ function connectionString() {
   return value
 }
 
+type QueryResult = { rows: unknown[] }
+type TransactionClient = {
+  query(text: string, params?: unknown[]): Promise<QueryResult>
+  release(): void
+}
+type PoolLike = {
+  connect(): Promise<TransactionClient>
+  end(): Promise<void>
+}
+type PoolFactory = () => PoolLike
+
+function defaultPoolFactory(): PoolLike {
+  return new Pool({ connectionString: connectionString() }) as unknown as PoolLike
+}
+
 /**
  * Rapid Takeoff's isolated Neon executor.
- * A fresh Pool is scoped to the serverless invocation; each policy operation
- * checks out one client so BEGIN/COMMIT and SELECT ... FOR UPDATE stay on the
- * same database session.
+ *
+ * Each transaction creates and closes its own Pool. A policy store can execute
+ * multiple sequential transactions during one request (admission, provider
+ * reservation, result recording) without attempting to reuse a Pool that a
+ * previous transaction already ended.
  */
-export function neonPolicyExecutor(): SqlExecutor {
-  const pool = new Pool({ connectionString: connectionString() })
-
+export function neonPolicyExecutor(createPool: PoolFactory = defaultPoolFactory): SqlExecutor {
   return {
     async transaction<T>(work: (sql: SqlQuery) => Promise<T>): Promise<T> {
+      const pool = createPool()
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
