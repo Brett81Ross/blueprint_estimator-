@@ -109,3 +109,36 @@ Development fix:
 - [x] Added the executor regression test to the standard Rapid Takeoff QA gate.
 - [ ] The fix is NOT deployed. Production remains v0.3.0 on the prior main SHA.
 - [ ] Known-answer fixture QA must be rerun only after an explicitly approved production deployment of the fix.
+
+
+## Production release verification — 2026-10-08
+
+Release authorization received and PR #4 merged to main.
+
+Production release:
+- Merge SHA: 70d5bd5392f01c4a57ec52f638b4a13673fe9cee
+- Vercel deployment: dpl_9a68EStcQrLrFgrRrDuP3KY2gGJ7
+- Public alias: https://blueprint-estimator.vercel.app
+- Deployment state: READY
+- Rollback SHA preserved: ab0927c30f2f0ac1a8ffa33acb5f2dcf999814f0
+
+Known-answer production rerun after the Neon pool lifecycle fix:
+- [x] Concrete C-01 returned HTTP 200 and correctly identified 600 SF slab area.
+- [x] Concrete C-01 correctly calculated approximately 7.41 CY.
+- [x] Painter P-01 returned HTTP 200 and correctly identified 715 SF net painted wall area.
+- [x] Plumbing PL-01 returned HTTP 200 and correctly identified four fixtures.
+- [x] Plumbing PL-01 correctly reconciled plan + fixture schedule without double-counting to eight.
+- [x] All three new Neon reservations recorded provider_started_at.
+- [x] All three new reservations recorded outcome = success.
+- [x] ProofTrace sources matched the controlled fixture sheet/notes.
+- [x] SheetLink reconciliations matched known fixture facts.
+- [x] Conflict Radar distinguished no verified conflicts from missing-scope/RFI risks.
+- [x] Confidence Matrix kept missing piping/specification data in NEEDS REVIEW instead of fabricating quantities.
+
+Release result:
+- Stage-2 hardened analysis path is operational in production.
+- Controlled known-answer takeoff gate passed 5/5 quantity assertions.
+- The prior three pre-fix stuck reservations remain preserved as historical failure evidence.
+
+Next accuracy guardrail:
+- [ ] Tighten cost/labor basis behavior so absent user/project pricing does not produce market-like numbers without an explicit UNVERIFIED ASSUMPTION/allowance treatment and source/date/location basis.
