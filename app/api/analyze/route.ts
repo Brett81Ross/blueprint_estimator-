@@ -6,7 +6,7 @@ import { configuredPolicyStore } from "../../../lib/configured-policy-store";
 import { SUBJECT_COOKIE, createSubjectToken, subjectCookieOptions, verifySubjectToken } from "../../../lib/analysis-identity";
 import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
 import { buildAnalysisPrompt } from "../../../lib/analysis-prompt";
-import { withTransientProviderRetry } from "../../../lib/provider-retry";
+import { PROVIDER_ATTEMPT_TIMEOUT_MS, providerErrorStatus, providerRetryReason, withTransientProviderRetry } from "../../../lib/provider-retry";
 import { guardPricingOutput } from "../../../lib/pricing-output-guard";
 
 export const runtime = "nodejs";
@@ -182,7 +182,10 @@ export async function POST(req: Request) {
     providerStarted = true;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const model = genAI.getGenerativeModel(
+      { model: "gemini-3.5-flash" },
+      { timeout: PROVIDER_ATTEMPT_TIMEOUT_MS }
+    );
 
     const parts: any[] = [
       {
@@ -222,8 +225,8 @@ export async function POST(req: Request) {
       {
         maxAttempts: 3,
         delaysMs: [1_000, 2_500],
-        onRetry: ({ attempt, nextAttempt, status }) => {
-          console.warn("Rapid Takeoff transient provider retry", { attempt, nextAttempt, status });
+        onRetry: ({ attempt, nextAttempt, status, reason }) => {
+          console.warn("Rapid Takeoff transient provider retry", { attempt, nextAttempt, status, reason });
         },
       }
     );
@@ -248,18 +251,22 @@ export async function POST(req: Request) {
       // Preserve the original request failure; ledger recording must not mask it.
     }
 
+    const providerStatus = providerErrorStatus(error);
+    const retryReason = providerRetryReason(error);
+
     console.error("Rapid Takeoff analysis request failed", {
       name: error?.name || "Error",
-      status: error?.status || error?.statusCode,
+      status: providerStatus,
+      reason: retryReason,
     });
 
     const errorMessage = error?.message || "";
 
-    if (errorMessage.includes("429") || errorMessage.includes("quota")) {
+    if (providerStatus === 429 || errorMessage.includes("429") || errorMessage.includes("quota")) {
       return respond({ success: false, error: "Analysis capacity is temporarily limited. Please wait and try again." }, 429);
     }
 
-    if (errorMessage.includes("503")) {
+    if (providerStatus === 503 || retryReason === "timeout" || errorMessage.includes("503")) {
       return respond({ success: false, error: "Analysis is temporarily unavailable. Please try again shortly." }, 503);
     }
 
