@@ -182,7 +182,10 @@ export async function POST(req: Request) {
     providerStarted = true;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel(\n      { model: "gemini-3.5-flash" },\n      { timeout: PROVIDER_ATTEMPT_TIMEOUT_MS }\n    );
+    const model = genAI.getGenerativeModel(
+      { model: "gemini-3.5-flash" },
+      { timeout: PROVIDER_ATTEMPT_TIMEOUT_MS }
+    );
 
     const parts: any[] = [
       {
