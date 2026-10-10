@@ -44,7 +44,7 @@ COST BASIS GUARDRAIL — MANDATORY
 7. If a labor rate is supplied but productivity is not, show the assumed productivity separately and rate the resulting labor-hours/cost confidence PROBABLE or NEEDS REVIEW as appropriate. Never call assumed productivity VERIFIED.
 8. Do not produce a grand-total dollar estimate unless every included dollar component has a supported pricing basis. Otherwise state exactly which components are unpriced.
 9. Every dollar amount must include a short Basis label identifying the user field or uploaded document that supports it.
-10. Pricing assumptions are never VERIFIED unless the price itself is directly evidenced.
+10. Pricing assumptions are never VERIFIED unless the price itself is directly evidenced.\n11. NEVER use $0, $0.00, zero-dollar, or numeric-zero placeholders for an unpriced line. The Unit Price/Rate and Cost cells must both say UNPRICED when their basis is not supplied.
 
 SCALE HANDLING RULE
 If scale handling is "Auto Detect / Mixed Sheets", determine scale independently for each relevant sheet or drawing region and never assume one project-wide scale. If it is "Unknown / Not Provided", measure only when visible dimensions, scale bars, or reliable sheet notes establish scale. Otherwise lower confidence and place affected quantities in NEEDS REVIEW.
@@ -94,7 +94,7 @@ Show supported labor quantities/hours, productivity assumptions, and labor rate 
 
 # Detailed Cost Breakdown
 For each priced line use: Item | Quantity | Unit Price/Rate | Cost | Basis | Pricing Confidence.
-For missing pricing use "UNPRICED — pricing basis not supplied". Do not create a grand total when any required major component is unpriced.
+For missing pricing use "UNPRICED — pricing basis not supplied". In table rows, both Unit Price/Rate and Cost must be UNPRICED; never substitute $0 or $0.00. Do not create a grand total when any required major component is unpriced.
 
 # SheetLink™ Cross-Checks
 Show reconciliations between plans, schedules, legends, details and notes.

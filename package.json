@@ -12,7 +12,8 @@
     "test:project-inputs": "tsx --test tests/project-inputs.test.ts",
     "test:neon-executor": "tsx --test tests/neon-policy-executor.test.ts",
     "test:analysis-prompt": "tsx --test tests/analysis-prompt.test.ts",
-    "test:provider-retry": "tsx --test tests/provider-retry.test.ts"
+    "test:provider-retry": "tsx --test tests/provider-retry.test.ts",
+    "test:pricing-output-guard": "tsx --test tests/pricing-output-guard.test.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.14.0",

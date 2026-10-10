@@ -7,6 +7,7 @@ import { SUBJECT_COOKIE, createSubjectToken, subjectCookieOptions, verifySubject
 import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
 import { buildAnalysisPrompt } from "../../../lib/analysis-prompt";
 import { withTransientProviderRetry } from "../../../lib/provider-retry";
+import { guardPricingOutput } from "../../../lib/pricing-output-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -227,7 +228,11 @@ export async function POST(req: Request) {
       }
     );
 
-    const rawText = result.response.text();
+    const pricingGuard = guardPricingOutput(result.response.text());
+    if (pricingGuard.replacements > 0) {
+      console.warn("Rapid Takeoff pricing output guard applied", { replacements: pricingGuard.replacements });
+    }
+    const rawText = pricingGuard.text;
     await recordOutcome("success");
     return respond({
       success: true,

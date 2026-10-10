@@ -54,5 +54,7 @@ jobs:
         run: npm run test:analysis-prompt
       - name: Provider retry regression tests
         run: npm run test:provider-retry
+      - name: Pricing output guard tests
+        run: npm run test:pricing-output-guard
       - name: Production build
         run: npm run build

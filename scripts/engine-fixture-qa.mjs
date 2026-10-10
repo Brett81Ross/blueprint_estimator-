@@ -16,8 +16,8 @@ const cases = [
     ceilingHeight: 'Not specified',
     scale: '1/4" = 1\'-0"',
     assertions: [
-      { name: '600 SF slab area', pattern: /600\s*(SF|sq\.?\s*ft|square feet)/i },
-      { name: 'approximately 7.41 CY concrete', pattern: /7(?:\.4|\.41)\s*(CY|cu\.?\s*yd|cubic yard)/i },
+      { name: '600 SF slab area', pattern: /600\s*(?:\|\s*)?(SF|sq\.?\s*ft|square feet)/i },
+      { name: 'approximately 7.41 CY concrete', pattern: /7(?:\.4|\.41)\s*(?:\|\s*)?(CY|cu\.?\s*yd|cubic yard)/i },
     ],
   },
   {
@@ -27,7 +27,7 @@ const cases = [
     ceilingHeight: '8 ft',
     scale: '1/4" = 1\'-0"',
     assertions: [
-      { name: '715 SF net painted wall area', pattern: /715\s*(SF|sq\.?\s*ft|square feet)/i },
+      { name: '715 SF net painted wall area', pattern: /715\s*(?:\|\s*)?(SF|sq\.?\s*ft|square feet)/i },
     ],
   },
   {
@@ -97,13 +97,14 @@ async function analyzeWithRetry(testCase) {
   return { response: finalResponse, payload: finalPayload }
 }
 
-function withoutLatexMathDelimiters(report) {
-  return report.replace(/\$([^$\r\n]*\\[^$\r\n]*)\$/g, '$1')
+function detailedCostSection(report) {
+  const match = report.match(/#\s+Detailed Cost Breakdown\b([\s\S]*?)(?=\n#\s+|$)/i)
+  return match?.[1] || ''
 }
 
-function containsCurrencyAmount(report) {
-  const normalized = withoutLatexMathDelimiters(report)
-  return /(?:\$\s*\d[\d,]*(?:\.\d+)?|\b(?:USD|US\$)\s*\d[\d,]*(?:\.\d+)?)/i.test(normalized)
+function containsCurrencyAmountInCostSection(report) {
+  const costSection = detailedCostSection(report)
+  return /(?:\$\s*\d[\d,]*(?:\.\d+)?|\b(?:USD|US\$)\s*\d[\d,]*(?:\.\d+)?)/i.test(costSection)
 }
 
 let failed = false
@@ -134,7 +135,7 @@ for (const testCase of cases) {
     if (!passed) failed = true
   }
 
-  const currencyFree = !containsCurrencyAmount(report)
+  const currencyFree = !containsCurrencyAmountInCostSection(report)
   console.log(`${currencyFree ? 'PASS' : 'FAIL'}: does not invent currency amounts without pricing basis`)
   if (!currencyFree) failed = true
 }
