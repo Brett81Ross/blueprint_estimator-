@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { providerErrorStatus, withTransientProviderRetry } from '../lib/provider-retry'
+import {
+  PROVIDER_ATTEMPT_TIMEOUT_MS,
+  PROVIDER_MAX_ATTEMPTS,
+  PROVIDER_MAX_WAIT_BUDGET_MS,
+  providerErrorStatus,
+  providerRetryReason,
+  withTransientProviderRetry,
+} from '../lib/provider-retry'
 
 const statusError = (message: string, status: number) => {
   const error = new Error(message) as Error & { status: number }
@@ -8,10 +15,29 @@ const statusError = (message: string, status: number) => {
   return error
 }
 
-test('reads provider status fields', () => {
+test('provider retry budget stays below the 60-second function ceiling', () => {
+  assert.equal(PROVIDER_ATTEMPT_TIMEOUT_MS, 16_000)
+  assert.equal(PROVIDER_MAX_ATTEMPTS, 3)
+  assert.equal(PROVIDER_MAX_WAIT_BUDGET_MS, 51_500)
+  assert.ok(PROVIDER_MAX_WAIT_BUDGET_MS < 60_000)
+})
+
+test('reads provider status fields and classifies 503', () => {
   assert.equal(providerErrorStatus({ status: 503 }), 503)
   assert.equal(providerErrorStatus({ statusCode: '503' }), 503)
+  assert.equal(providerRetryReason({ status: 503 }), 'provider_503')
   assert.equal(providerErrorStatus(null), undefined)
+})
+
+test('classifies SDK abort and timeout failures as retryable timeouts', () => {
+  assert.equal(
+    providerRetryReason({ name: 'GoogleGenerativeAIAbortError', message: 'This operation was aborted' }),
+    'timeout'
+  )
+  assert.equal(
+    providerRetryReason({ name: 'Error', message: 'Provider request timed out' }),
+    'timeout'
+  )
 })
 
 test('returns immediately on success', async () => {
@@ -44,6 +70,28 @@ test('recovers after two transient 503 responses', async () => {
   assert.deepEqual(sleeps, [1000, 2500])
 })
 
+test('recovers after an SDK timeout', async () => {
+  let attempts = 0
+  const reasons: string[] = []
+
+  const value = await withTransientProviderRetry(async () => {
+    attempts += 1
+    if (attempts === 1) {
+      const error = new Error('This operation was aborted')
+      error.name = 'GoogleGenerativeAIAbortError'
+      throw error
+    }
+    return 'recovered'
+  }, {
+    sleep: async () => {},
+    onRetry: input => reasons.push(input.reason),
+  })
+
+  assert.equal(value, 'recovered')
+  assert.equal(attempts, 2)
+  assert.deepEqual(reasons, ['timeout'])
+})
+
 test('does not retry a 429 response', async () => {
   let attempts = 0
 
@@ -55,12 +103,14 @@ test('does not retry a 429 response', async () => {
   assert.equal(attempts, 1)
 })
 
-test('stops after three 503 attempts', async () => {
+test('stops after three timeout attempts', async () => {
   let attempts = 0
 
   await assert.rejects(() => withTransientProviderRetry(async () => {
     attempts += 1
-    throw statusError('provider unavailable', 503)
+    const error = new Error('request timeout')
+    error.name = 'GoogleGenerativeAIAbortError'
+    throw error
   }, {
     maxAttempts: 3,
     sleep: async () => {},
