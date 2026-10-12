@@ -58,3 +58,42 @@ Run: https://github.com/Brett81Ross/blueprint_estimator-/actions/runs/3827017215
 - [x] Next.js production build.
 
 Production remains on RT-08 / c69841888acd0e6cfb82eb67df890a61f9d00050 until explicit owner approval for RT-09.
+
+
+## Production release verification — 2026-10-12
+
+Release authorization received and PR #11 merged to main.
+
+Production release:
+- Merge SHA: ef8b5428c2a1c3f26b70cfc4be177bf8cf69b640
+- Vercel deployment: dpl_7ha1YoDqjnVc6SGSwvogxMTcKrhc
+- Public alias: https://blueprint-estimator.vercel.app
+- Deployment state: READY
+- Rollback SHA preserved: c69841888acd0e6cfb82eb67df890a61f9d00050
+
+Live provider-routing evidence:
+- [x] Exact production SHA gate passed.
+- [x] gemini-3.8-flash returned HTTP 503 on all three fixtures.
+- [x] Rapid Takeoff switched each request to gemini-3.5-flash-lite.
+- [x] Concrete completed successfully through fallback.
+- [x] Painter completed successfully through fallback.
+- [x] Plumbing completed successfully through fallback.
+- [x] No Vercel Runtime Timeout Error occurred.
+- [x] Neon recorded three consecutive success outcomes.
+
+Known-answer production fixture run:
+- Run: https://github.com/Brett81Ross/blueprint_estimator-/actions/runs/38270681465
+- Concrete: PASS 600 SF slab area.
+- Concrete: PASS approximately 7.41 CY concrete.
+- Painter: PASS 715 SF net painted wall area.
+- Plumbing: PASS four fixtures.
+- Plumbing: PASS does not double-count to eight.
+- All three: PASS missing pricing basis marked UNPRICED.
+- All three: PASS no invented currency amounts without pricing basis.
+- All three successful JSON payloads report providerModel gemini-3.5-flash-lite and providerFallback true.
+
+Release result:
+- ABL-RT-09 is VERIFIED LIVE.
+- The persistent provider-capacity blocker is functionally bypassed by bounded model failover.
+- gemini-3.8-flash remains degraded with 503 responses during this release window, but Rapid Takeoff is operational through gemini-3.5-flash-lite.
+- Production should remain on ef8b5428c2a1c3f26b70cfc4be177bf8cf69b640.
