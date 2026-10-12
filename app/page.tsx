@@ -6,6 +6,7 @@ import RapidTools from './RapidTools'
 import { FILE_ACCEPT, RAPID_UPLOAD_LIMITS, SCALE_OPTIONS, SUPPORTED_UPLOAD_TYPES, TRADES, requiresCeilingHeight } from '../lib/project-inputs'
 import { analysisErrorMessage } from '../lib/analysis-errors'
 import { analysisCooldownButtonLabel, analysisCooldownSeconds } from '../lib/analysis-cooldown'
+import { RAPID_TAKEOFF_VERSION } from '../lib/app-version'
 
 interface FileWithPreview { file: File; preview?: string }
 interface ReportSection { title: string; lines: string[] }
@@ -235,7 +236,7 @@ export default function Home() {
         <span>Rapid Matrix Engine™</span>
         <div className="flex items-center gap-2">
           <RapidTools trade={trade} setTrade={setTrade} projectType={projectType} setProjectType={setProjectType} scale={scale} setScale={setScale} />
-          <span>v0.3.0</span>
+          <span>v{RAPID_TAKEOFF_VERSION}</span>
         </div>
       </div>
 
