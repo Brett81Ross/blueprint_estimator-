@@ -1,6 +1,6 @@
 # ABL-RT-08 — Provider Cooldown UX
 
-Status: DEVELOPMENT — NO PRODUCTION DEPLOYMENT AUTHORIZED
+Status: READY FOR RELEASE REVIEW — NO PRODUCTION DEPLOYMENT AUTHORIZED
 
 Branch: dev-rt-abl-08
 Production baseline: a3c99f892b6aef471d0b8eb0fa71f0db5fc7c81a
@@ -28,3 +28,21 @@ ABL-RT-07 now returns stable provider-capacity codes and Retry-After hints, but 
 ## Release gate
 
 Do not merge/deploy until explicit owner approval.
+
+
+## Final branch QA
+
+Run: https://github.com/Brett81Ross/blueprint_estimator-/actions/runs/38257304299
+
+- [x] Typecheck.
+- [x] Firewall/security tests.
+- [x] Project-input tests.
+- [x] Neon executor regression tests.
+- [x] Analysis prompt / pricing guardrail tests.
+- [x] Provider retry/timeout regression tests.
+- [x] Pricing output guard tests.
+- [x] Analysis error contract tests.
+- [x] Provider cooldown tests.
+- [x] Next.js production build.
+
+Production remains on a3c99f892b6aef471d0b8eb0fa71f0db5fc7c81a until explicit owner approval.
