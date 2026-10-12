@@ -1,6 +1,6 @@
 # ABL-RT-10 — Ledger Self-Healing + Expanded Contractor QA
 
-Status: DEVELOPMENT — NO PRODUCTION DEPLOYMENT AUTHORIZED
+Status: READY FOR RELEASE REVIEW — NO PRODUCTION DEPLOYMENT AUTHORIZED
 
 Branch: dev-rt-abl-10
 Production baseline: ef8b5428c2a1c3f26b70cfc4be177bf8cf69b640
@@ -49,3 +49,24 @@ Production inspection before this batch found:
 ## Release gate
 
 Do not merge/deploy until the full branch and PR-specific QA gates pass and owner approves production.
+
+
+## Final branch QA
+
+Run: https://github.com/Brett81Ross/blueprint_estimator-/actions/runs/38274034573
+
+- [x] Typecheck.
+- [x] Firewall/security tests.
+- [x] Project-input tests.
+- [x] Neon executor regression tests.
+- [x] Postgres policy-store self-healing/idempotency tests.
+- [x] Analysis prompt / pricing guardrail tests.
+- [x] Provider retry/timeout regression tests.
+- [x] Provider model-router tests.
+- [x] Pricing output guard tests.
+- [x] Analysis error contract tests.
+- [x] Provider cooldown tests.
+- [x] Version consistency tests.
+- [x] Next.js production build.
+
+Production remains on RT-09 / ef8b5428c2a1c3f26b70cfc4be177bf8cf69b640 until explicit owner approval.
