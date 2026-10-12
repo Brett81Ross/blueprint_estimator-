@@ -58,5 +58,7 @@ jobs:
         run: npm run test:pricing-output-guard
       - name: Analysis error contract tests
         run: npm run test:analysis-errors
+      - name: Analysis cooldown tests
+        run: npm run test:analysis-cooldown
       - name: Production build
         run: npm run build

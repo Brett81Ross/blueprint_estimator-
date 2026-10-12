@@ -5,6 +5,7 @@ import imageCompression from 'browser-image-compression'
 import RapidTools from './RapidTools'
 import { FILE_ACCEPT, RAPID_UPLOAD_LIMITS, SCALE_OPTIONS, SUPPORTED_UPLOAD_TYPES, TRADES, requiresCeilingHeight } from '../lib/project-inputs'
 import { analysisErrorMessage } from '../lib/analysis-errors'
+import { analysisCooldownButtonLabel, analysisCooldownSeconds } from '../lib/analysis-cooldown'
 
 interface FileWithPreview { file: File; preview?: string }
 interface ReportSection { title: string; lines: string[] }
@@ -30,6 +31,7 @@ export default function Home() {
   const [costBasis, setCostBasis] = useState('')
   const [scale, setScale] = useState('Auto Detect / Mixed Sheets')
   const [loading, setLoading] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const [report, setReport] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [proAccess, setProAccess] = useState(false)
@@ -54,6 +56,14 @@ export default function Home() {
   useEffect(() => {
     if (report && reportRef.current) reportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [report])
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const timer = window.setInterval(() => {
+      setCooldownSeconds(current => Math.max(0, current - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [cooldownSeconds > 0])
 
   useEffect(() => () => {
     previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
@@ -129,6 +139,10 @@ export default function Home() {
   }
 
   const handleUpload = async () => {
+    if (cooldownSeconds > 0) {
+      setErrorMessage(`The analysis provider is cooling down. Your plans are still loaded. Try again in ${cooldownSeconds} seconds.`)
+      return
+    }
     if (!files.length) {
       setErrorMessage('Add at least one blueprint before running the Rapid Matrix Engine™.')
       return
@@ -175,8 +189,14 @@ export default function Home() {
 
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
       const data = await response.json()
-      if (response.ok) setReport(data.data)
-      else setErrorMessage(analysisErrorMessage(data, response.status))
+      if (response.ok) {
+        setCooldownSeconds(0)
+        setReport(data.data)
+      } else {
+        const nextCooldown = analysisCooldownSeconds(data)
+        if (nextCooldown > 0) setCooldownSeconds(nextCooldown)
+        setErrorMessage(analysisErrorMessage(data, response.status))
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'The blueprint set could not be processed. Try fewer or smaller files.')
     } finally {
@@ -294,8 +314,11 @@ export default function Home() {
           ))}
         </div>}
 
-        <button onClick={handleUpload} disabled={loading || !files.length} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase tracking-wider hover:bg-orange-400 disabled:opacity-50">
-          {loading ? 'Rapid Matrix Engine™ analyzing…' : 'Run Rapid Matrix Engine™'}
+        {cooldownSeconds > 0 && <div role="status" className="mb-3 rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-center text-sm font-bold text-amber-300">
+          Provider cooldown active · your uploaded plans remain loaded · retry in {cooldownSeconds}s
+        </div>}
+        <button onClick={handleUpload} disabled={loading || !files.length || cooldownSeconds > 0} className="w-full bg-orange-500 text-zinc-950 font-black py-4 rounded-lg uppercase tracking-wider hover:bg-orange-400 disabled:opacity-50">
+          {loading ? 'Rapid Matrix Engine™ analyzing…' : analysisCooldownButtonLabel(cooldownSeconds)}
         </button>
       </div>
 
