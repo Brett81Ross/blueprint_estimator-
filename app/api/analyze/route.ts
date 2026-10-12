@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { validateContentLength, validateFiles, validateFileSignatures, validateUploadContentType, safeDocumentLabel, safePromptField } from "../../../lib/upload-guard";
 import { configuredPolicyLimits, privacyHash, requestIp, truncateUserAgent } from "../../../lib/analysis-policy";
 import { configuredPolicyStore } from "../../../lib/configured-policy-store";
 import { SUBJECT_COOKIE, createSubjectToken, subjectCookieOptions, verifySubjectToken } from "../../../lib/analysis-identity";
 import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
 import { buildAnalysisPrompt } from "../../../lib/analysis-prompt";
-import { PROVIDER_ATTEMPT_TIMEOUT_MS, providerErrorStatus, providerRetryReason, withTransientProviderRetry } from "../../../lib/provider-retry";
+import { PROVIDER_ATTEMPT_TIMEOUT_MS, providerErrorStatus, providerRetryReason } from "../../../lib/provider-retry";
+import { withProviderModelFallback } from "../../../lib/provider-model-router";
 import { guardPricingOutput } from "../../../lib/pricing-output-guard";
 import { analysisLimitPayload, providerCapacityPayload, providerTemporaryPayload, PROVIDER_CAPACITY_RETRY_AFTER_SECONDS, PROVIDER_TEMPORARY_RETRY_AFTER_SECONDS } from "../../../lib/analysis-errors";
 
@@ -189,11 +190,7 @@ export async function POST(req: Request) {
 
     providerStarted = true;
 
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel(
-      { model: "gemini-3.5-flash" },
-      { timeout: PROVIDER_ATTEMPT_TIMEOUT_MS }
-    );
+    const genAI = new GoogleGenAI({ apiKey: geminiKey });
 
     const parts: any[] = [
       {
@@ -226,20 +223,39 @@ export async function POST(req: Request) {
       });
     }
 
-    const result = await withTransientProviderRetry(
-      () => model.generateContent({
+    const providerResult = await withProviderModelFallback(
+      model => genAI.models.generateContent({
+        model,
         contents: [{ role: "user", parts }],
+        config: {
+          httpOptions: {
+            timeout: PROVIDER_ATTEMPT_TIMEOUT_MS,
+            retryOptions: { attempts: 1 },
+          },
+        },
       }),
       {
-        maxAttempts: 3,
-        delaysMs: [1_000, 2_500],
-        onRetry: ({ attempt, nextAttempt, status, reason }) => {
-          console.warn("Rapid Takeoff transient provider retry", { attempt, nextAttempt, status, reason });
+        onFallback: ({ from, to, status, reason }) => {
+          console.warn("Rapid Takeoff provider model fallback", { from, to, status, reason });
+        },
+        onFallbackRetry: ({ model, attempt, nextAttempt, status, reason }) => {
+          console.warn("Rapid Takeoff fallback provider retry", {
+            model,
+            attempt,
+            nextAttempt,
+            status,
+            reason,
+          });
         },
       }
     );
 
-    const pricingGuard = guardPricingOutput(result.response.text());
+    const providerText = providerResult.value.text || "";
+    if (!providerText.trim()) {
+      throw new Error("Provider returned an empty analysis response");
+    }
+
+    const pricingGuard = guardPricingOutput(providerText);
     if (pricingGuard.replacements > 0) {
       console.warn("Rapid Takeoff pricing output guard applied", { replacements: pricingGuard.replacements });
     }
@@ -250,6 +266,8 @@ export async function POST(req: Request) {
       data: rawText,
       engine: "Rapid Matrix Engine™",
       verification: "ProofTrace™ + Confidence Matrix™ + SheetLink™ + Conflict Radar™",
+      providerModel: providerResult.model,
+      providerFallback: providerResult.usedFallback,
     });
 
   } catch (error: any) {

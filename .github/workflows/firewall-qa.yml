@@ -54,6 +54,8 @@ jobs:
         run: npm run test:analysis-prompt
       - name: Provider retry regression tests
         run: npm run test:provider-retry
+      - name: Provider model router tests
+        run: npm run test:provider-model-router
       - name: Pricing output guard tests
         run: npm run test:pricing-output-guard
       - name: Analysis error contract tests

@@ -15,16 +15,17 @@
     "test:provider-retry": "tsx --test tests/provider-retry.test.ts",
     "test:pricing-output-guard": "tsx --test tests/pricing-output-guard.test.ts",
     "test:analysis-errors": "tsx --test tests/analysis-errors.test.ts",
-    "test:analysis-cooldown": "tsx --test tests/analysis-cooldown.test.ts"
+    "test:analysis-cooldown": "tsx --test tests/analysis-cooldown.test.ts",
+    "test:provider-model-router": "tsx --test tests/provider-model-router.test.ts"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.14.0",
     "@neondatabase/serverless": "^1.0.0",
     "browser-image-compression": "^2.0.2",
     "next": "14.2.4",
     "qrcode": "^1.5.4",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "@google/genai": "2.28.0"
   },
   "devDependencies": {
     "@types/node": "^20",
