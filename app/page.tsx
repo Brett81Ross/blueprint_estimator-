@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import imageCompression from 'browser-image-compression'
 import RapidTools from './RapidTools'
 import { FILE_ACCEPT, RAPID_UPLOAD_LIMITS, SCALE_OPTIONS, SUPPORTED_UPLOAD_TYPES, TRADES, requiresCeilingHeight } from '../lib/project-inputs'
+import { analysisErrorMessage } from '../lib/analysis-errors'
 
 interface FileWithPreview { file: File; preview?: string }
 interface ReportSection { title: string; lines: string[] }
@@ -175,7 +176,7 @@ export default function Home() {
       const response = await fetch('/api/analyze', { method: 'POST', body: formData })
       const data = await response.json()
       if (response.ok) setReport(data.data)
-      else setErrorMessage(data.error || 'Unknown server error.')
+      else setErrorMessage(analysisErrorMessage(data, response.status))
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'The blueprint set could not be processed. Try fewer or smaller files.')
     } finally {

@@ -87,11 +87,16 @@ async function analyzeWithRetry(testCase) {
       return { response, payload }
     }
 
-    const retryable = response.status === 429 || response.status === 503
+    const retryable = response.status === 503
     console.error(`HTTP ${response.status}: ${payload?.error || 'Invalid response'}`)
 
+    if (response.status === 429) {
+      console.log('Capacity/limit response detected; failing fast so recovery checks do not hammer the provider.')
+      break
+    }
+
     if (!retryable || attempt === maxAttempts) break
-    console.log('Transient response detected; retrying after pacing interval.')
+    console.log('Transient 503 response detected; retrying after pacing interval.')
   }
 
   return { response: finalResponse, payload: finalPayload }
