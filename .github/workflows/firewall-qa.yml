@@ -56,5 +56,7 @@ jobs:
         run: npm run test:provider-retry
       - name: Pricing output guard tests
         run: npm run test:pricing-output-guard
+      - name: Analysis error contract tests
+        run: npm run test:analysis-errors
       - name: Production build
         run: npm run build

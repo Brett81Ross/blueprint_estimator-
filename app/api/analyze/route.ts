@@ -8,6 +8,7 @@ import { PRO_COOKIE, verifyProAccessToken } from "../../../lib/pro-access";
 import { buildAnalysisPrompt } from "../../../lib/analysis-prompt";
 import { PROVIDER_ATTEMPT_TIMEOUT_MS, providerErrorStatus, providerRetryReason, withTransientProviderRetry } from "../../../lib/provider-retry";
 import { guardPricingOutput } from "../../../lib/pricing-output-guard";
+import { analysisLimitPayload, providerCapacityPayload, providerTemporaryPayload, PROVIDER_CAPACITY_RETRY_AFTER_SECONDS, PROVIDER_TEMPORARY_RETRY_AFTER_SECONDS } from "../../../lib/analysis-errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -19,8 +20,11 @@ export async function POST(req: Request) {
   let outcomeRecorded = false;
   let pendingSubjectToken: string | undefined;
 
-  const respond = (body: object, status = 200) => {
-    const response = NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
+  const respond = (body: object, status = 200, extraHeaders: Record<string, string> = {}) => {
+    const response = NextResponse.json(body, {
+      status,
+      headers: { "Cache-Control": "no-store", ...extraHeaders },
+    });
     if (pendingSubjectToken) response.cookies.set(SUBJECT_COOKIE, pendingSubjectToken, subjectCookieOptions());
     return response;
   };
@@ -86,7 +90,9 @@ export async function POST(req: Request) {
     if (!admission.allowed) {
       await logPolicyRejection(admission.reason);
       return respond(
-        { success: false, error: admission.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
+        admission.status === 429
+          ? analysisLimitPayload()
+          : { success: false, error: "Analysis is temporarily unavailable." },
         admission.status
       );
     }
@@ -174,7 +180,9 @@ export async function POST(req: Request) {
     if (!providerUsage.allowed) {
       await logPolicyRejection(providerUsage.reason);
       return respond(
-        { success: false, error: providerUsage.status === 429 ? "Analysis limit reached. Please try again later." : "Analysis is temporarily unavailable." },
+        providerUsage.status === 429
+          ? analysisLimitPayload()
+          : { success: false, error: "Analysis is temporarily unavailable." },
         providerUsage.status
       );
     }
@@ -263,11 +271,19 @@ export async function POST(req: Request) {
     const errorMessage = error?.message || "";
 
     if (providerStatus === 429 || errorMessage.includes("429") || errorMessage.includes("quota")) {
-      return respond({ success: false, error: "Analysis capacity is temporarily limited. Please wait and try again." }, 429);
+      return respond(
+        providerCapacityPayload(),
+        429,
+        { "Retry-After": String(PROVIDER_CAPACITY_RETRY_AFTER_SECONDS) }
+      );
     }
 
     if (providerStatus === 503 || retryReason === "timeout" || errorMessage.includes("503")) {
-      return respond({ success: false, error: "Analysis is temporarily unavailable. Please try again shortly." }, 503);
+      return respond(
+        providerTemporaryPayload(),
+        503,
+        { "Retry-After": String(PROVIDER_TEMPORARY_RETRY_AFTER_SECONDS) }
+      );
     }
 
     return respond({ success: false, error: "Analysis failed. Please try again later." }, 500);
