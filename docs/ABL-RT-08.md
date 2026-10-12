@@ -46,3 +46,22 @@ Run: https://github.com/Brett81Ross/blueprint_estimator-/actions/runs/3825730429
 - [x] Next.js production build.
 
 Production remains on a3c99f892b6aef471d0b8eb0fa71f0db5fc7c81a until explicit owner approval.
+
+
+## Production release verification — 2026-10-12
+
+Release authorized as part of the super-large batch and PR #10 merged to main.
+
+Production release:
+- Merge SHA: c69841888acd0e6cfb82eb67df890a61f9d00050
+- Vercel deployment: dpl_83QcUYEQuaXBU9vDMVbChs8bu9JH
+- Public alias: https://blueprint-estimator.vercel.app
+- Deployment state: READY
+- Rollback SHA: a3c99f892b6aef471d0b8eb0fa71f0db5fc7c81a
+
+Live fixture status:
+- Exact production SHA gate passed.
+- Concrete, Painter, and Plumbing each returned provider HTTP 429.
+- RT-07 fail-fast behavior remained intact: one provider attempt per case.
+- Full quantity assertions remain blocked by provider capacity.
+- RT-08 UI cooldown release is live; no rollback signal was observed.
