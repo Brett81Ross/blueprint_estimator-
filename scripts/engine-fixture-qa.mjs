@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fourPlumbingFixturesPattern, eightPlumbingFixturesPattern } from './engine-fixture-patterns.mjs'
 
 const site = 'https://blueprint-estimator.vercel.app'
 const requestSpacingMs = 25_000
@@ -38,8 +39,8 @@ const cases = [
     ceilingHeight: 'Not specified',
     scale: 'Unknown / Not Provided',
     assertions: [
-      { name: 'four plumbing fixtures', pattern: /(?:4|four)\s+(?:plumbing\s+)?fixtures?/i },
-      { name: 'does not double-count to eight fixtures', pattern: /(?:8|eight)\s+(?:plumbing\s+)?fixtures?/i, absent: true },
+      { name: 'four plumbing fixtures', pattern: fourPlumbingFixturesPattern },
+      { name: 'does not double-count to eight fixtures', pattern: eightPlumbingFixturesPattern, absent: true },
     ],
   },
   {
@@ -53,8 +54,8 @@ const cases = [
     assertions: [
       { name: 'GC preserves 600 SF concrete quantity', pattern: /600\s*(?:\|\s*)?(SF|sq\.?\s*ft|square feet)/i },
       { name: 'GC preserves approximately 7.41 CY concrete', pattern: /7(?:\.4|\.41)\s*(?:\|\s*)?(CY|cu\.?\s*yd|cubic yard)/i },
-      { name: 'GC counts four plumbing fixtures', pattern: /(?:4|four)\s+(?:plumbing\s+)?fixtures?/i },
-      { name: 'GC does not double-count plumbing to eight', pattern: /(?:8|eight)\s+(?:plumbing\s+)?fixtures?/i, absent: true },
+      { name: 'GC counts four plumbing fixtures', pattern: fourPlumbingFixturesPattern },
+      { name: 'GC does not double-count plumbing to eight', pattern: eightPlumbingFixturesPattern, absent: true },
       { name: 'SheetLink section is present', pattern: /SheetLink/i },
       { name: 'Conflict Radar section is present', pattern: /Conflict Radar/i },
       { name: 'user-supplied $145 per CY survives pricing guard', pattern: /\$\s*145(?:\.00)?\b/i },
