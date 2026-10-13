@@ -22,10 +22,12 @@ test('provider retry budget stays below the 60-second function ceiling', () => {
   assert.ok(PROVIDER_MAX_WAIT_BUDGET_MS < 60_000)
 })
 
-test('reads provider status fields and classifies 503', () => {
+test('reads provider status fields and classifies 503/504 as transient unavailable', () => {
   assert.equal(providerErrorStatus({ status: 503 }), 503)
   assert.equal(providerErrorStatus({ statusCode: '503' }), 503)
   assert.equal(providerRetryReason({ status: 503 }), 'provider_503')
+  assert.equal(providerErrorStatus({ status: 504 }), 504)
+  assert.equal(providerRetryReason({ status: 504 }), 'provider_503')
   assert.equal(providerErrorStatus(null), undefined)
 })
 
@@ -117,4 +119,17 @@ test('stops after three timeout attempts', async () => {
   }))
 
   assert.equal(attempts, 3)
+})
+
+
+test('recovers after a transient 504 response', async () => {
+  let attempts = 0
+  const value = await withTransientProviderRetry(async () => {
+    attempts += 1
+    if (attempts === 1) throw statusError('gateway timeout', 504)
+    return 'recovered'
+  }, { sleep: async () => {} })
+
+  assert.equal(value, 'recovered')
+  assert.equal(attempts, 2)
 })

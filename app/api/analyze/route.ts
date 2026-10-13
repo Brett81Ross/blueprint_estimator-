@@ -296,7 +296,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (providerStatus === 503 || retryReason === "timeout" || errorMessage.includes("503")) {
+    if (providerStatus === 503 || providerStatus === 504 || retryReason === "timeout" || errorMessage.includes("503") || errorMessage.includes("504")) {
       return respond(
         providerTemporaryPayload(),
         503,

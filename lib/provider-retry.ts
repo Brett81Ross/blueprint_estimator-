@@ -32,7 +32,7 @@ export function providerErrorStatus(error: unknown): number | undefined {
 
 export function providerRetryReason(error: unknown): ProviderRetryReason | undefined {
   const status = providerErrorStatus(error)
-  if (status === 503) return 'provider_503'
+  if (status === 503 || status === 504) return 'provider_503'
   if (!error || typeof error !== 'object') return undefined
 
   const candidate = error as { name?: unknown; message?: unknown }
