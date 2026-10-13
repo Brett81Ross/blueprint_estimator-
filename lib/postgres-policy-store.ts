@@ -9,12 +9,29 @@ type ReservationRow = { id: string; subject_hash: string; ip_hash: string; plan:
 
 const utcDay = (now: Date) => now.toISOString().slice(0, 10)
 
+export const STALE_RESERVATION_AFTER_MS = 5 * 60_000
+
+export function staleReservationCutoff(now: Date) {
+  return new Date(now.getTime() - STALE_RESERVATION_AFTER_MS)
+}
+
 export function postgresPolicyStore(db: SqlExecutor): AnalysisPolicyStore {
   return {
     async reserveAdmission(input: AnalysisIdentity, limits: PolicyLimits): Promise<AdmissionDecision> {
       return db.transaction(async (sql) => {
         const control = await sql<RuntimeRow>('select analysis_enabled from rapid_runtime_control where singleton = true for update')
         if (control.rows.length !== 1 || control.rows[0].analysis_enabled !== true) return { allowed: false, status: 503, reason: 'analysis_disabled' }
+
+        // A Vercel request cannot legitimately remain active for five minutes.
+        // Terminalize old null-outcome reservations before admitting new work so
+        // platform interruptions cannot leave the accounting ledger ambiguous.
+        await sql(
+          `update rapid_analysis_reservations
+              set outcome = 'server_error'
+            where outcome is null
+              and created_at < $1::timestamptz`,
+          [staleReservationCutoff(input.now).toISOString()]
+        )
 
         const burst = await sql<{ count: string }>(
           `select count(*)::text as count from rapid_analysis_reservations
@@ -77,7 +94,7 @@ export function postgresPolicyStore(db: SqlExecutor): AnalysisPolicyStore {
 
     async recordResult(input) {
       await db.transaction(async (sql) => {
-        await sql('update rapid_analysis_reservations set outcome = $2, input_tokens = $3, output_tokens = $4 where id = $1',
+        await sql('update rapid_analysis_reservations set outcome = $2, input_tokens = $3, output_tokens = $4 where id = $1 and outcome is null',
           [input.reservationId, input.outcome, input.inputTokens ?? null, input.outputTokens ?? null])
       })
     },

@@ -50,6 +50,8 @@ jobs:
         run: npm run test:project-inputs
       - name: Neon executor regression tests
         run: npm run test:neon-executor
+      - name: Postgres policy-store regression tests
+        run: npm run test:postgres-policy-store
       - name: Analysis prompt guardrail tests
         run: npm run test:analysis-prompt
       - name: Provider retry regression tests
@@ -62,5 +64,7 @@ jobs:
         run: npm run test:analysis-errors
       - name: Analysis cooldown tests
         run: npm run test:analysis-cooldown
+      - name: Version consistency tests
+        run: npm run test:version-consistency
       - name: Production build
         run: npm run build
