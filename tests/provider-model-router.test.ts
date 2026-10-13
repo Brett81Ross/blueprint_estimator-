@@ -63,6 +63,19 @@ test('503 on primary falls back', async () => {
   assert.equal(result.model, PROVIDER_FALLBACK_MODEL)
 })
 
+test('504 on primary falls back', async () => {
+  const calls: string[] = []
+  const result = await withProviderModelFallback(async model => {
+    calls.push(model)
+    if (model === PROVIDER_PRIMARY_MODEL) throw providerError(504, 'gateway timeout')
+    return 'fallback-ok'
+  })
+  assert.equal(result.value, 'fallback-ok')
+  assert.equal(result.model, PROVIDER_FALLBACK_MODEL)
+  assert.equal(result.usedFallback, true)
+  assert.deepEqual(calls, [PROVIDER_PRIMARY_MODEL, PROVIDER_FALLBACK_MODEL])
+})
+
 test('timeout on primary falls back', async () => {
   const result = await withProviderModelFallback(async model => {
     if (model === PROVIDER_PRIMARY_MODEL) throw new Error('request timed out')
@@ -115,4 +128,24 @@ test('fallback 429 is returned without repeated hammering', async () => {
     error => (error as { status?: number }).status === 429
   )
   assert.deepEqual(calls, [PROVIDER_PRIMARY_MODEL, PROVIDER_FALLBACK_MODEL])
+})
+
+
+test('fallback retries once after a 504 and can recover', async () => {
+  const calls: string[] = []
+  const sleeps: number[] = []
+  const result = await withProviderModelFallback(async model => {
+    calls.push(model)
+    if (model === PROVIDER_PRIMARY_MODEL) throw providerError(504, 'primary gateway timeout')
+    if (calls.filter(value => value === PROVIDER_FALLBACK_MODEL).length === 1) {
+      throw providerError(504, 'fallback gateway timeout')
+    }
+    return 'recovered'
+  }, {
+    sleep: async ms => { sleeps.push(ms) },
+  })
+
+  assert.equal(result.value, 'recovered')
+  assert.equal(result.model, PROVIDER_FALLBACK_MODEL)
+  assert.deepEqual(sleeps, [1_000])
 })

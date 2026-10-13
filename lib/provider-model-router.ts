@@ -38,7 +38,7 @@ export type ProviderModelFallbackOptions = {
 
 function shouldFallback(error: unknown): boolean {
   const status = providerErrorStatus(error)
-  if (status === 429 || status === 503) return true
+  if (status === 429 || status === 503 || status === 504) return true
   return providerRetryReason(error) === 'timeout'
 }
 
