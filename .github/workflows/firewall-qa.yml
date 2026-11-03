@@ -66,5 +66,7 @@ jobs:
         run: npm run test:analysis-cooldown
       - name: Version consistency tests
         run: npm run test:version-consistency
+      - name: Engine fixture pattern tests
+        run: npm run test:fixture-patterns
       - name: Production build
         run: npm run build

@@ -18,7 +18,8 @@
     "test:analysis-cooldown": "tsx --test tests/analysis-cooldown.test.ts",
     "test:provider-model-router": "tsx --test tests/provider-model-router.test.ts",
     "test:postgres-policy-store": "tsx --test tests/postgres-policy-store.test.ts",
-    "test:version-consistency": "tsx --test tests/version-consistency.test.ts"
+    "test:version-consistency": "tsx --test tests/version-consistency.test.ts",
+    "test:fixture-patterns": "node --test tests/engine-fixture-patterns.test.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.0",
